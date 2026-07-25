@@ -88,14 +88,18 @@ app.use(cors({
     // Allow requests with no origin (like mobile apps, curl, or postman)
     if (!origin) return callback(null, true);
     
+    const cleanFrontendUrl = process.env.FRONTEND_URL ? process.env.FRONTEND_URL.replace(/\/$/, '') : '';
+    
     if (
       allowedOrigins.includes(origin) ||
+      (cleanFrontendUrl && origin === cleanFrontendUrl) ||
+      origin.endsWith('.vercel.app') ||
       origin.startsWith('http://localhost:') ||
       origin.startsWith('http://127.0.0.1:')
     ) {
       callback(null, true);
     } else {
-      callback(null, false);
+      callback(new Error('Not allowed by CORS'));
     }
   },
   credentials: true
