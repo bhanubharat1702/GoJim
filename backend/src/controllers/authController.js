@@ -241,12 +241,25 @@ exports.login = async (req, res) => {
       });
     }
 
-    const token = user.getSignedJwtToken();
+    const crypto = require('crypto');
+
+    // Check for active session on another system
+    if (user.isLoggedIn && user.activeSessionId && !force) {
+      return res.status(200).json({
+        success: false,
+        requiresConfirmation: true,
+        message: 'You are already logged in on another device. Would you like to log out the other device and continue?'
+      });
+    }
+
+    const sessionId = crypto.randomUUID();
+    const token = user.getSignedJwtToken({ sessionId });
 
     user.lastLogin = new Date();
     user.lastActivity = new Date();
     user.loginCount = (user.loginCount || 0) + 1;
     user.isLoggedIn = true;
+    user.activeSessionId = sessionId;
     await user.save();
 
     const AuditLog = require('../models/AuditLog');
@@ -953,6 +966,7 @@ exports.logout = async (req, res) => {
   try {
     if (req.user) {
       req.user.isLoggedIn = false;
+      req.user.activeSessionId = '';
       await req.user.save();
     }
     const AuditLog = require('../models/AuditLog');

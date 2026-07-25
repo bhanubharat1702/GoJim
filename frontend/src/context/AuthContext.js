@@ -10,8 +10,8 @@ export function AuthProvider({ children }) {
   const [loading, setLoading] = useState(true);
 
   // Define Handlers first to avoid temporal dead zone (TDZ) hoisting ReferenceErrors
-  const login = useCallback(async (email, password) => {
-    const res = await authApi.login({ email, password });
+  const login = useCallback(async (email, password, force = false) => {
+    const res = await authApi.login({ email, password, force });
     if (res.success) {
       localStorage.setItem('gojim_token', res.token);
       localStorage.setItem('gojim_user', JSON.stringify(res.user));

@@ -70,6 +70,9 @@ connectDB().then(async () => {
 
 const app = express();
 
+// Trust reverse proxy (essential for Render / Cloudflare deployment)
+app.set('trust proxy', 1);
+
 // Security middleware
 app.use(helmet());
 
@@ -108,7 +111,7 @@ app.use(cors({
 // Rate limiting
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: process.env.NODE_ENV === 'development' ? 5000 : 100, // higher limit in dev mode
+  max: 3000, // allow up to 3000 requests per 15 mins per IP
   message: { success: false, message: 'Too many requests, please try again later' }
 });
 app.use('/api/', limiter);

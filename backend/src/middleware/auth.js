@@ -26,6 +26,15 @@ const protect = async (req, res, next) => {
       });
     }
 
+    // Single active session enforcement: check if user logged in on another device
+    if (decoded.sessionId && req.user.activeSessionId && decoded.sessionId !== req.user.activeSessionId && !decoded.isImpersonated) {
+      return res.status(401).json({
+        success: false,
+        sessionExpired: true,
+        message: 'Your account was logged in on another device'
+      });
+    }
+
     // Set gymOwnerId for multi-tenancy
     // If owner, gymOwnerId is their own ID. If staff/trainer, it's their parent owner's ID.
     req.gymOwnerId = req.user.role === 'owner' ? req.user._id : req.user.gymOwner;

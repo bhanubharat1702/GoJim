@@ -34,6 +34,7 @@ export default function LoginPage() {
       .catch(() => {});
   }, []);
 
+  const [showSessionModal, setShowSessionModal] = useState(false);
   const [forgotStep, setForgotStep] = useState('login'); // login, phone, reset
   const [resetToken, setResetToken] = useState('');
   const [form, setForm] = useState({ email: '', password: '', phone: '', otp: '', newPassword: '', confirmPassword: '' });
@@ -128,7 +129,9 @@ export default function LoginPage() {
     try {
       if (forgotStep === 'login') {
         const result = await login(form.email, form.password);
-        if (result?.success) {
+        if (result?.requiresConfirmation) {
+          setShowSessionModal(true);
+        } else if (result?.success) {
           if (result.user?.role === 'superadmin') {
             router.push('/super-admin');
           } else {
@@ -415,6 +418,55 @@ export default function LoginPage() {
 
         </div>
       </div>
+
+      {/* Active Session Confirmation Modal */}
+      {showSessionModal && (
+        <div className="fixed inset-0 z-[1000] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-fadeIn">
+          <div className="bg-bg-card border border-white/10 p-6 rounded-2xl max-w-md w-full shadow-2xl text-center space-y-4">
+            <div className="w-12 h-12 rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-400 flex items-center justify-center text-xl mx-auto">
+              ⚠️
+            </div>
+            <h3 className="text-lg font-bold text-white">Active Session Detected</h3>
+            <p className="text-xs text-text-muted leading-relaxed">
+              You are already logged in on another device. Would you like to log out the other device and continue logging in here?
+            </p>
+            <div className="flex gap-3 pt-2">
+              <button
+                type="button"
+                onClick={() => setShowSessionModal(false)}
+                className="flex-1 py-3 px-4 rounded-xl border border-white/10 text-xs font-bold text-gray-400 hover:text-white hover:bg-white/5 transition-all"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={async () => {
+                  setShowSessionModal(false);
+                  setLoading(true);
+                  try {
+                    const res = await login(form.email, form.password, true);
+                    if (res?.success) {
+                      if (res.user?.role === 'superadmin') {
+                        router.push('/super-admin');
+                      } else {
+                        sessionStorage.setItem('just_logged_in', 'true');
+                        router.push('/dashboard');
+                      }
+                    }
+                  } catch (err) {
+                    setError(err.message);
+                  } finally {
+                    setLoading(false);
+                  }
+                }}
+                className="flex-1 py-3 px-4 rounded-xl bg-accent text-black text-xs font-black shadow-lg shadow-accent/20 hover:scale-[1.02] active:scale-95 transition-all"
+              >
+                Continue & Log In
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

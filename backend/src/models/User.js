@@ -136,6 +136,10 @@ const userSchema = new mongoose.Schema({
     type: Boolean,
     default: false
   },
+  activeSessionId: {
+    type: String,
+    default: ''
+  },
   trainerCompensation: {
     type: mongoose.Schema.Types.Mixed,
     default: {
