@@ -5,11 +5,9 @@ const sendEmail = async (to, subject, text, html) => {
   const emailPass = process.env.EMAIL_PASS;
 
   if (!emailUser || !emailPass) {
-    console.log(`\n--- [EMAIL SIMULATOR] ---\nTo: ${to}\nSubject: ${subject}\nMessage: ${text}\n-------------------------\n`);
     return {
       success: false,
-      isDemo: true,
-      message: 'OTP sent to your server console. To receive real-world emails for 100% FREE, configure EMAIL_USER and EMAIL_PASS in backend/.env!'
+      message: 'Email service is not configured. Please add EMAIL_USER and EMAIL_PASS in your Render Environment Variables.'
     };
   }
 
@@ -26,15 +24,13 @@ const sendEmail = async (to, subject, text, html) => {
 
   try {
     const transporter = nodemailer.createTransport({
-      host: 'smtp.gmail.com',
-      port: 587,
-      secure: false, // true for port 465, false for other ports (like 587)
+      service: 'gmail',
       auth: {
         user: emailUser,
         pass: emailPass
       },
       tls: {
-        rejectUnauthorized: false // avoids SSL certificate issues
+        rejectUnauthorized: false
       }
     });
 
@@ -52,7 +48,7 @@ const sendEmail = async (to, subject, text, html) => {
     console.error('Nodemailer SMTP Error:', error.message);
     return {
       success: false,
-      message: `Nodemailer SMTP delivery failed: ${error.message}`
+      message: `Email delivery failed (${error.message}). Please check EMAIL_USER and EMAIL_PASS App Password.`
     };
   }
 };

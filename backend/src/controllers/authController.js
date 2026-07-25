@@ -746,9 +746,7 @@ exports.sendOTP = async (req, res) => {
 
     res.status(200).json({
       success: true,
-      message: 'OTP sent successfully',
-      isDemo: result.isDemo || false,
-      info: result.message || undefined
+      message: 'A verification code has been sent to your email address!'
     });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });

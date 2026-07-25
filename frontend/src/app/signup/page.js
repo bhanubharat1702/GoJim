@@ -182,12 +182,12 @@ export default function SignupPage() {
         setOtpExpiry(240);
         setSignupStep('otp');
         if (res.isDemo) {
-          setSmsFeedback(res.info || 'Email/SMTP credentials not configured in backend .env. Real OTP simulated in console!');
+          setSmsFeedback(res.info || (res.otpCode ? `Verification Code (Demo): ${res.otpCode}` : 'SMTP connection timed out. OTP generated in demo mode!'));
         } else {
           setSmsFeedback('A verification code has been sent to your email address!');
           setTimeout(() => {
             setSmsFeedback('');
-          }, 5000);
+          }, 8000);
         }
       }
     } catch (err) {
