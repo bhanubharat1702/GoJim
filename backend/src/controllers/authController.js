@@ -122,7 +122,7 @@ exports.register = async (req, res) => {
 exports.login = async (req, res) => {
   try {
     const rawIdentifier = (req.body.email || req.body.phone || req.body.identifier || '').toString().trim();
-    const { password } = req.body;
+    const { password, force } = req.body;
 
     if (!rawIdentifier || !password) {
       return res.status(400).json({ success: false, message: 'Please provide email or phone number and password' });
@@ -243,8 +243,11 @@ exports.login = async (req, res) => {
 
     const crypto = require('crypto');
 
-    // Check for active session on another system
-    if (user.isLoggedIn && user.activeSessionId && !force) {
+    // Check for active session on another system (ignore if session was inactive for > 12 hours)
+    const twelveHoursMs = 12 * 60 * 60 * 1000;
+    const isStaleSession = user.lastActivity && (new Date() - new Date(user.lastActivity) > twelveHoursMs);
+
+    if (user.isLoggedIn && user.activeSessionId && !force && !isStaleSession) {
       return res.status(200).json({
         success: false,
         requiresConfirmation: true,
