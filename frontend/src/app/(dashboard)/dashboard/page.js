@@ -1763,17 +1763,17 @@ export default function DashboardPage() {
 
           {/* Members Table */}
           <div className="space-y-6">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <h2 className="text-xl font-black tracking-tighter">All Members</h2>
-              <div className="flex items-center gap-4">
-                <div className="relative">
+              <div className="flex flex-wrap items-center gap-3 sm:gap-4">
+                <div className="relative flex-1 sm:flex-none">
                   <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted" />
                   <input
                     type="text"
                     placeholder="Search"
                     value={memberSearch || ''}
                     onChange={(e) => setMemberSearch(e.target.value)}
-                    className="bg-[#0d0d0d] border border-white/5 rounded-xl pl-9 pr-4 py-2 text-xs w-48 focus:border-accent/50 outline-none transition-all"
+                    className="bg-[#0d0d0d] border border-white/5 rounded-xl pl-9 pr-4 py-2 text-xs w-full sm:w-48 focus:border-accent/50 outline-none transition-all"
                   />
                 </div>
                 <div className="flex items-center gap-2 text-[10px] font-black text-text-muted uppercase tracking-widest">
@@ -1788,7 +1788,8 @@ export default function DashboardPage() {
             </div>
 
             <div className="bg-[#0d0d0d] border border-white/5 rounded-xl overflow-hidden">
-              <table className="w-full text-left border-collapse">
+              <div className="overflow-x-auto">
+                <table className="w-full text-left border-collapse min-w-[650px]">
                 <thead>
                   <tr className="border-b border-white/5">
                     <th className="px-6 py-5 text-[10px] font-black text-text-muted uppercase tracking-[0.2em]">Member Name</th>
@@ -1847,6 +1848,7 @@ export default function DashboardPage() {
                   ))}
                 </tbody>
               </table>
+              </div>
               <div className="border-t border-white/5 p-4 flex justify-center bg-[#0d0d0d]">
                 <Link href="/members" className="text-xs font-black text-white hover:text-accent uppercase tracking-widest hover:underline no-underline flex items-center gap-1.5 transition-all hover:gap-2">
                   View All Members <ChevronRight size={14} strokeWidth={3} />

@@ -296,8 +296,8 @@ export default function DashboardLayout({ children }) {
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-accent/10 via-bg-primary to-bg-primary" />
         <div className="absolute inset-0 bg-[linear-gradient(to_right,#ffffff03_1px,transparent_1px),linear-gradient(to_bottom,#ffffff03_1px,transparent_1px)] bg-[size:24px_24px] pointer-events-none" />
 
-        <div className="w-full max-w-md bg-[#18181b]/85 backdrop-blur-2xl border border-white/10 rounded-2xl p-8 shadow-2xl text-center space-y-6 relative z-10 animate-fade-in">
-          <div className="w-12 h-12 rounded-full bg-red-500/10 border border-red-500/20 flex items-center justify-center mx-auto text-red-500">
+        <div className="w-full max-w-sm sm:max-w-md bg-[#18181b]/85 backdrop-blur-2xl border border-white/10 rounded-2xl p-5 sm:p-8 shadow-2xl text-center space-y-5 sm:space-y-6 relative z-10 animate-fade-in">
+          <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-full bg-red-500/10 border border-red-500/20 flex items-center justify-center mx-auto text-red-500">
             <Lock size={20} />
           </div>
           
@@ -629,7 +629,7 @@ export default function DashboardLayout({ children }) {
     <div className={`min-h-screen bg-bg-primary ${paddingClass}`}>
       <TopNav broadcast={broadcast} setBroadcast={setBroadcast} />
       <main className="pb-6 lg:pb-4">
-        <div className="py-2 px-4 lg:py-4 lg:px-8 max-w-7xl mx-auto relative">
+        <div className="py-2 px-3 sm:px-4 lg:py-4 lg:px-8 max-w-7xl mx-auto relative">
           {alertInfo && !isAlertDismissed && (
             <div className="mb-4 p-4 rounded-xl bg-yellow-500/10 border border-yellow-500/20 text-yellow-400 flex items-center justify-between gap-4 animate-fade-in">
               <div className="flex items-center gap-3">

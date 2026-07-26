@@ -1,10 +1,11 @@
 'use client';
+
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { useRouter } from 'next/navigation';
 import { superAdminApi, authApi } from '@/lib/api';
 import Link from 'next/link';
-import { Mail, Lock, Phone, KeyRound, Eye, EyeOff, X } from 'lucide-react';
+import { Mail, Lock, Phone, KeyRound, Eye, EyeOff, X, ArrowLeft } from 'lucide-react';
 
 export default function LoginPage() {
   const [appName, setAppName] = useState('goJim');
@@ -55,7 +56,6 @@ export default function LoginPage() {
       if (step === 'reset' && token) {
         setForgotStep('reset');
         setResetToken(token);
-        // Clean query parameters from URL without reload
         const newUrl = window.location.pathname;
         window.history.replaceState({}, '', newUrl);
       }
@@ -80,12 +80,12 @@ export default function LoginPage() {
     }
   }, [isAuthenticated, user, router]);
 
-  // Security enhancement: Auto-hide password after 2 seconds
+  // Security enhancement: Auto-hide password after 2.5 seconds
   useEffect(() => {
     if (showPassword) {
       const hideTimer = setTimeout(() => {
         setShowPassword(false);
-      }, 2000);
+      }, 2500);
       return () => clearTimeout(hideTimer);
     }
   }, [showPassword]);
@@ -111,7 +111,6 @@ export default function LoginPage() {
     { name: 'Features', href: '/#features', id: 'features' },
     { name: 'Pricing', href: '/#pricing', id: 'pricing' },
     { name: 'Testimonials', href: '/#testimonials', id: 'testimonials' },
-    { name: 'Facilities', href: '/#facilities', id: 'facilities' },
   ];
 
   const handleSubmit = async (e) => {
@@ -167,26 +166,26 @@ export default function LoginPage() {
   const renderForm = () => {
     if (isAuthenticated) {
       return (
-        <div className="text-center py-12 flex flex-col items-center justify-center">
-          <div className="w-10 h-10 border-2 border-accent border-t-transparent rounded-full animate-spin mb-6" />
-          <h3 className="text-xl font-bold text-white mb-2">Redirecting...</h3>
-          <p className="text-xs text-text-muted">Taking you to your dashboard</p>
+        <div className="text-center py-8 sm:py-12 flex flex-col items-center justify-center">
+          <div className="w-10 h-10 border-2 border-accent border-t-transparent rounded-full animate-spin mb-4" />
+          <h3 className="text-lg sm:text-xl font-bold text-white mb-1">Redirecting...</h3>
+          <p className="text-xs text-text-muted">Taking you to your gym dashboard</p>
         </div>
       );
     }
 
     if (forgotStep === 'login') {
       return (
-        <div className="space-y-4">
+        <div className="space-y-3.5 sm:space-y-4">
           <div className="relative group">
-            <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted transition-colors group-focus-within:text-accent" />
+            <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted transition-colors group-focus-within:text-accent" />
             <input
               type="text"
               placeholder="Email or Phone Number"
-              className={`bg-black/40 pl-12 pr-12 transition-all w-full ${
+              className={`bg-black/50 text-sm sm:text-base pl-11 pr-4 py-3 sm:py-3.5 rounded-xl border transition-all w-full focus:outline-none ${
                 attemptedSubmit && !form.email.trim()
                   ? 'border-red-500/50 focus:border-red-500'
-                  : 'border-white/5 focus:border-accent'
+                  : 'border-white/10 focus:border-accent'
               }`}
               value={form.email}
               onChange={e => {
@@ -197,14 +196,14 @@ export default function LoginPage() {
             />
           </div>
           <div className="relative group">
-            <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted transition-colors group-focus-within:text-accent" />
+            <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted transition-colors group-focus-within:text-accent" />
             <input
               type={showPassword ? 'text' : 'password'}
               placeholder="Password"
-              className={`bg-black/40 pl-12 pr-12 transition-all w-full ${
+              className={`bg-black/50 text-sm sm:text-base pl-11 pr-11 py-3 sm:py-3.5 rounded-xl border transition-all w-full focus:outline-none ${
                 attemptedSubmit && !form.password.trim()
                   ? 'border-red-500/50 focus:border-red-500'
-                  : 'border-white/5 focus:border-accent'
+                  : 'border-white/10 focus:border-accent'
               }`}
               value={form.password}
               onChange={e => {
@@ -216,16 +215,17 @@ export default function LoginPage() {
             <button
               type="button"
               onClick={() => setShowPassword(p => !p)}
-              className="absolute right-4 top-1/2 -translate-y-1/2 text-text-muted hover:text-accent transition-colors"
+              className="absolute right-3.5 top-1/2 -translate-y-1/2 text-text-muted hover:text-accent transition-colors p-1"
+              aria-label="Toggle password visibility"
             >
               {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
             </button>
           </div>
-          <div className="flex justify-end mt-1 px-1">
+          <div className="flex justify-end pt-0.5 px-0.5">
             <button
               type="button"
               onClick={() => setForgotStep('phone')}
-              className="text-[10px] text-text-muted hover:text-accent font-bold uppercase tracking-tighter"
+              className="text-[11px] sm:text-[12px] text-text-muted hover:text-accent font-bold uppercase tracking-wider transition-colors"
             >
               Forgot Password?
             </button>
@@ -237,19 +237,19 @@ export default function LoginPage() {
     if (forgotStep === 'phone') {
       return (
         <div className="space-y-4">
-          <div className="text-center mb-6">
-            <h3 className="text-lg font-bold text-white">Reset Password</h3>
-            <p className="text-xs text-gray-500 mt-1">Enter your registered email address</p>
+          <div className="text-center mb-4 sm:mb-6">
+            <h3 className="text-base sm:text-lg font-bold text-white">Reset Password</h3>
+            <p className="text-xs text-gray-400 mt-1">Enter your registered email address</p>
           </div>
           <div className="relative group">
-            <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted transition-colors group-focus-within:text-accent" />
+            <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted transition-colors group-focus-within:text-accent" />
             <input
               type="email"
               placeholder="Email Address"
-              className={`bg-black/40 pl-12 transition-all w-full ${
+              className={`bg-black/50 text-sm sm:text-base pl-11 pr-4 py-3 sm:py-3.5 rounded-xl border transition-all w-full focus:outline-none ${
                 attemptedSubmit && !form.email.trim()
                   ? 'border-red-500/50 focus:border-red-500'
-                  : 'border-white/5 focus:border-accent'
+                  : 'border-white/10 focus:border-accent'
               }`}
               value={form.email}
               onChange={e => setForm({ ...form, email: e.target.value })}
@@ -259,9 +259,9 @@ export default function LoginPage() {
           <button
             type="button"
             onClick={() => setForgotStep('login')}
-            className="text-[10px] text-text-muted hover:text-text-primary font-bold uppercase tracking-widest w-full text-center"
+            className="text-xs text-text-muted hover:text-text-primary font-bold uppercase tracking-widest w-full text-center py-2 flex items-center justify-center gap-1"
           >
-            ← Back to Login
+            <ArrowLeft className="w-3.5 h-3.5" /> Back to Login
           </button>
         </div>
       );
@@ -269,20 +269,20 @@ export default function LoginPage() {
 
     if (forgotStep === 'reset') {
       return (
-        <div className="space-y-4">
-          <div className="text-center mb-6">
-            <h3 className="text-lg font-bold text-white">New Password</h3>
-            <p className="text-xs text-gray-500 mt-1">Create a secure password</p>
+        <div className="space-y-3.5 sm:space-y-4">
+          <div className="text-center mb-4 sm:mb-6">
+            <h3 className="text-base sm:text-lg font-bold text-white">New Password</h3>
+            <p className="text-xs text-gray-400 mt-1">Create a secure password</p>
           </div>
           <div className="relative group">
-            <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted transition-colors group-focus-within:text-accent" />
+            <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted transition-colors group-focus-within:text-accent" />
             <input
               type="password"
               placeholder="New Password"
-              className={`bg-black/40 pl-12 transition-all w-full ${
+              className={`bg-black/50 text-sm sm:text-base pl-11 pr-4 py-3 sm:py-3.5 rounded-xl border transition-all w-full focus:outline-none ${
                 attemptedSubmit && !form.newPassword.trim()
                   ? 'border-red-500/50 focus:border-red-500'
-                  : 'border-white/5 focus:border-accent'
+                  : 'border-white/10 focus:border-accent'
               }`}
               value={form.newPassword}
               onChange={e => setForm({ ...form, newPassword: e.target.value })}
@@ -291,14 +291,14 @@ export default function LoginPage() {
             />
           </div>
           <div className="relative group">
-            <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted transition-colors group-focus-within:text-accent" />
+            <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted transition-colors group-focus-within:text-accent" />
             <input
               type="password"
               placeholder="Confirm Password"
-              className={`bg-black/40 pl-12 transition-all w-full ${
+              className={`bg-black/50 text-sm sm:text-base pl-11 pr-4 py-3 sm:py-3.5 rounded-xl border transition-all w-full focus:outline-none ${
                 attemptedSubmit && !form.confirmPassword.trim()
                   ? 'border-red-500/50 focus:border-red-500'
-                  : 'border-white/5 focus:border-accent'
+                  : 'border-white/10 focus:border-accent'
               }`}
               value={form.confirmPassword}
               onChange={e => setForm({ ...form, confirmPassword: e.target.value })}
@@ -319,24 +319,24 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4 bg-bg-primary">
+    <div className="min-h-screen flex items-center justify-center p-3 sm:p-4 bg-bg-primary overflow-x-hidden">
 
       {/* Floating Navbar */}
-      <nav className="fixed top-6 left-0 right-0 z-[999] flex justify-center px-4">
+      <nav className="fixed top-3 sm:top-6 left-0 right-0 z-[999] flex justify-center px-3 sm:px-4">
         <div
-          className="w-full max-w-5xl border border-white/10 rounded-2xl px-6 md:px-8 py-3 flex items-center justify-between shadow-2xl"
+          className="w-full max-w-5xl border border-white/10 rounded-2xl px-4 sm:px-6 md:px-8 py-2.5 sm:py-3 flex items-center justify-between shadow-2xl"
           style={{
-            backgroundColor: 'rgba(22, 22, 23, 0.72)',
+            backgroundColor: 'rgba(22, 22, 23, 0.85)',
             backdropFilter: 'saturate(180%) blur(20px)',
             WebkitBackdropFilter: 'saturate(180%) blur(20px)'
           }}
         >
           {/* Logo */}
-          <Link href="/" className="flex items-center gap-3 no-underline">
-            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-accent to-accent-dark flex items-center justify-center text-base shadow-inner">
+          <Link href="/" className="flex items-center gap-2.5 no-underline shrink-0">
+            <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-accent to-accent-dark flex items-center justify-center text-base shadow-inner">
               💪
             </div>
-            <span className="font-extrabold text-xl tracking-tight text-text-primary">{appName}</span>
+            <span className="font-extrabold text-lg sm:text-xl tracking-tight text-text-primary">{appName}</span>
           </Link>
 
           {/* Links (Desktop) */}
@@ -345,7 +345,7 @@ export default function LoginPage() {
               <Link
                 key={link.id}
                 href={link.href}
-                className="px-4 py-2 rounded-lg transition-all duration-300 text-gray-400 hover:text-white hover:bg-white/5"
+                className="px-3.5 py-2 rounded-lg transition-all duration-300 text-gray-400 hover:text-white hover:bg-white/5"
               >
                 {link.name}
               </Link>
@@ -353,18 +353,12 @@ export default function LoginPage() {
           </div>
 
           {/* Actions */}
-          <div className="flex items-center gap-3">
-            <Link
-              href="/login"
-              className="hidden sm:inline-block px-4 py-2 text-[13px] font-semibold transition-all duration-300 rounded-lg text-accent bg-accent/10"
-            >
-              Login
-            </Link>
+          <div className="flex items-center gap-2 sm:gap-3">
             <Link
               href="/signup"
-              className="px-5 py-2.5 text-[13px] font-extrabold rounded-xl transition-all shadow-2xl hover:scale-[1.02] active:scale-95 bg-accent text-black shadow-lg shadow-accent/20 hover:shadow-accent/40"
+              className="px-4 py-2 text-xs sm:text-[13px] font-black rounded-xl transition-all bg-accent text-black shadow-lg shadow-accent/20 hover:scale-[1.02] active:scale-95 no-underline"
             >
-              Get Started
+              Sign Up
             </Link>
           </div>
         </div>
@@ -376,28 +370,28 @@ export default function LoginPage() {
         <div className="absolute bottom-1/4 -right-32 w-96 h-96 bg-accent/3 rounded-full blur-3xl" />
       </div>
 
-      <div className="w-full max-w-md relative z-10 mt-20">
-        <div className="card !p-8 border-white/5 bg-bg-card/80 backdrop-blur-xl">
+      <div className="w-full max-w-md relative z-10 mt-16 sm:mt-20">
+        <div className="card !p-5 sm:!p-8 border-white/10 bg-bg-card/90 backdrop-blur-xl rounded-2xl shadow-2xl">
           {!isAuthenticated && forgotStep === 'login' && (
-            <div className="flex gap-2 mb-8 bg-black/40 rounded-2xl p-1.5 border border-white/5">
-              <div className="flex-1 py-3 text-center rounded-xl text-[13px] font-bold bg-accent text-black shadow-lg shadow-accent/30 cursor-pointer">
+            <div className="flex gap-1.5 mb-6 sm:mb-8 bg-black/50 rounded-xl p-1 border border-white/5">
+              <div className="flex-1 py-2.5 sm:py-3 text-center rounded-lg text-xs sm:text-[13px] font-black bg-accent text-black shadow-md shadow-accent/30 cursor-pointer">
                 Log In
               </div>
-              <Link href="/signup" className="flex-1 py-3 text-center rounded-xl text-[13px] font-bold transition-all duration-300 cursor-pointer text-text-muted hover:text-text-primary hover:bg-white/5">
+              <Link href="/signup" className="flex-1 py-2.5 sm:py-3 text-center rounded-lg text-xs sm:text-[13px] font-bold transition-all cursor-pointer text-text-muted hover:text-text-primary hover:bg-white/5 no-underline">
                 Sign Up
               </Link>
             </div>
           )}
 
           {error && (
-            <div className={`mb-6 p-4 rounded-xl border text-xs font-medium relative flex items-center justify-between gap-4 ${error.includes('successfully') ? 'bg-green-500/10 border-green-500/20 text-green-400' : 'bg-red-500/10 border-red-500/20 text-red-400'}`}>
-              <span className="flex-1">{error}</span>
+            <div className={`mb-5 p-3.5 sm:p-4 rounded-xl border text-xs font-medium relative flex items-center justify-between gap-3 ${error.includes('successfully') ? 'bg-green-500/10 border-green-500/20 text-green-400' : 'bg-red-500/10 border-red-500/20 text-red-400'}`}>
+              <span className="flex-1 leading-relaxed">{error}</span>
               <button
                 type="button"
                 onClick={() => setError('')}
                 className="text-text-muted hover:text-white transition-colors p-1 rounded hover:bg-white/5 shrink-0"
               >
-                <X className="w-3.5 h-3.5" />
+                <X className="w-4 h-4" />
               </button>
             </div>
           )}
@@ -409,7 +403,7 @@ export default function LoginPage() {
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full py-4 bg-accent hover:bg-accent-light text-black text-sm font-black rounded-xl transition-all shadow-lg shadow-accent/20 hover:shadow-accent/40 hover:scale-[1.01] active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed mt-2"
+                className="w-full py-3.5 sm:py-4 bg-accent hover:bg-accent-light text-black text-xs sm:text-sm font-black rounded-xl transition-all shadow-lg shadow-accent/20 hover:shadow-accent/40 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed mt-2 min-h-[48px]"
               >
                 {getButtonText()}
               </button>
@@ -421,20 +415,20 @@ export default function LoginPage() {
 
       {/* Active Session Confirmation Modal */}
       {showSessionModal && (
-        <div className="fixed inset-0 z-[1000] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-fadeIn">
-          <div className="bg-bg-card border border-white/10 p-6 rounded-2xl max-w-md w-full shadow-2xl text-center space-y-4">
+        <div className="fixed inset-0 z-[1000] flex items-center justify-center p-4 bg-black/85 backdrop-blur-md animate-fadeIn">
+          <div className="bg-bg-card border border-white/10 p-6 rounded-2xl max-w-sm sm:max-w-md w-full shadow-2xl text-center space-y-4">
             <div className="w-12 h-12 rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-400 flex items-center justify-center text-xl mx-auto">
               ⚠️
             </div>
-            <h3 className="text-lg font-bold text-white">Active Session Detected</h3>
+            <h3 className="text-base sm:text-lg font-bold text-white">Active Session Detected</h3>
             <p className="text-xs text-text-muted leading-relaxed">
               You are already logged in on another device. Would you like to log out the other device and continue logging in here?
             </p>
-            <div className="flex gap-3 pt-2">
+            <div className="flex gap-2.5 pt-2">
               <button
                 type="button"
                 onClick={() => setShowSessionModal(false)}
-                className="flex-1 py-3 px-4 rounded-xl border border-white/10 text-xs font-bold text-gray-400 hover:text-white hover:bg-white/5 transition-all"
+                className="flex-1 py-3 px-3 rounded-xl border border-white/10 text-xs font-bold text-gray-400 hover:text-white hover:bg-white/5 transition-all"
               >
                 Cancel
               </button>
@@ -459,9 +453,9 @@ export default function LoginPage() {
                     setLoading(false);
                   }
                 }}
-                className="flex-1 py-3 px-4 rounded-xl bg-accent text-black text-xs font-black shadow-lg shadow-accent/20 hover:scale-[1.02] active:scale-95 transition-all"
+                className="flex-1 py-3 px-3 rounded-xl bg-accent text-black text-xs font-black shadow-lg shadow-accent/20 hover:scale-[1.02] active:scale-95 transition-all"
               >
-                Continue & Log In
+                Continue &amp; Log In
               </button>
             </div>
           </div>

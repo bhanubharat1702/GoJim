@@ -124,6 +124,13 @@ export default function TopNav({ broadcast, setBroadcast }) {
   const [isSearching, setIsSearching] = useState(false);
   const [showNotificationDrawer, setShowNotificationDrawer] = useState(false);
   const [isNotificationDrawerOpen, setIsNotificationDrawerOpen] = useState(false);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [mobileAccordion, setMobileAccordion] = useState(null);
+
+  useEffect(() => {
+    setIsMobileMenuOpen(false);
+    setOpenSubMenu(null);
+  }, [pathname, searchParams]);
 
   const openNotificationDrawer = () => {
     setShowNotificationDrawer(true);
@@ -590,21 +597,31 @@ export default function TopNav({ broadcast, setBroadcast }) {
       )}
 
       <nav 
-        className="fixed left-0 right-0 z-[60] flex justify-center pt-4 pb-2 px-4 lg:pt-5 lg:pb-2.5 lg:px-8 shadow-lg transition-all duration-300"
+        className="fixed left-0 right-0 z-[60] flex justify-center pt-3.5 pb-2 px-3 sm:px-4 lg:pt-5 lg:pb-2.5 lg:px-8 shadow-lg transition-all duration-300"
         style={{ top: `${totalBannerHeight}px`, backgroundColor: '#000000' }}
       >
         <div className="w-full max-w-7xl flex items-center justify-between">
 
-          {/* Logo */}
-          <Link href="/dashboard" className="flex items-center gap-3 no-underline group">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-accent to-accent-dark flex items-center justify-center text-lg shadow-lg">
-              💪
-            </div>
-            <span className="font-black text-2xl tracking-tighter text-white hidden sm:block">{appName}</span>
-          </Link>
+          {/* Logo & Mobile Menu Toggle */}
+          <div className="flex items-center gap-2.5">
+            <button
+              onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+              className="md:hidden p-2 rounded-xl text-gray-300 hover:text-white bg-white/5 border border-white/10 active:scale-95 transition-all"
+              aria-label="Toggle navigation drawer"
+            >
+              {isMobileMenuOpen ? <X size={20} /> : <Menu size={20} />}
+            </button>
 
-          {/* Navigation - Static Pill (No Animation) */}
-          <div className="rounded-full p-1 flex items-center gap-1 shadow-2xl backdrop-blur-md" style={{ backgroundColor: '#1f1f1f' }} ref={subMenuRef}>
+            <Link href="/dashboard" className="flex items-center gap-2.5 no-underline group">
+              <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-gradient-to-br from-accent to-accent-dark flex items-center justify-center text-base sm:text-lg shadow-lg">
+                💪
+              </div>
+              <span className="font-black text-xl sm:text-2xl tracking-tighter text-white">{appName}</span>
+            </Link>
+          </div>
+
+          {/* Navigation - Static Pill (Desktop Only) */}
+          <div className="hidden md:flex rounded-full p-1 items-center gap-1 shadow-2xl backdrop-blur-md" style={{ backgroundColor: '#1f1f1f' }} ref={subMenuRef}>
             {navItems.map((item) => {
               const isActive = pathname === item.href ||
                 pathname === `${item.href}/` ||
@@ -642,7 +659,6 @@ export default function TopNav({ broadcast, setBroadcast }) {
                   {hasSub && (
                     <div className={`absolute top-full left-1/2 -translate-x-1/2 mt-3 flex-col bg-bg-card border border-white/10 rounded-2xl p-2 shadow-2xl min-w-[140px] z-[70] backdrop-blur-3xl
                       ${isSubOpen ? 'flex' : 'hidden group-hover:flex'}`}>
-                      {/* Hover Bridge */}
                       <div className="absolute -top-3 left-0 right-0 h-3 bg-transparent" />
 
                       {item.subItems.map((sub) => {
@@ -679,20 +695,21 @@ export default function TopNav({ broadcast, setBroadcast }) {
           </div>
 
           {/* Actions & Profile */}
-          <div className="flex items-center gap-3">
-            <div className="hidden md:flex items-center gap-2 mr-2">
+          <div className="flex items-center gap-2 sm:gap-3">
+            {/* Search & Notifications (Mobile & Desktop) */}
+            <div className="flex items-center gap-1.5 sm:gap-2">
               <button
                 onClick={() => {
                   setIsSearchOpen(!isSearchOpen);
                   if (!isSearchOpen) setSearchQuery('');
                 }}
-                className={`w-10 h-10 rounded-full flex items-center justify-center transition-all focus:outline-none focus:ring-0 focus-visible:outline-none focus-visible:ring-0 outline-none ring-0 ${isSearchOpen
+                className={`w-9 h-9 sm:w-10 sm:h-10 rounded-full flex items-center justify-center transition-all focus:outline-none ${isSearchOpen
                     ? 'text-[#212121] shadow-lg shadow-white/10'
                     : 'text-[#a2a2a2] hover:text-white'
                   }`}
                 style={{ backgroundColor: isSearchOpen ? '#ababab' : '#1f1f1f' }}
               >
-                <Search size={20} />
+                <Search size={18} />
               </button>
               <div className="relative">
                 <button
@@ -700,15 +717,15 @@ export default function TopNav({ broadcast, setBroadcast }) {
                     openNotificationDrawer();
                     setIsDropdownOpen(false);
                   }}
-                  className={`w-10 h-10 rounded-full flex items-center justify-center transition-all focus:outline-none focus:ring-0 focus-visible:outline-none focus-visible:ring-0 outline-none ring-0 relative ${showNotificationDrawer
+                  className={`w-9 h-9 sm:w-10 sm:h-10 rounded-full flex items-center justify-center transition-all focus:outline-none relative ${showNotificationDrawer
                       ? 'text-[#212121] shadow-lg shadow-white/10'
                       : 'text-[#a2a2a2] hover:text-white'
                     }`}
                   style={{ backgroundColor: showNotificationDrawer ? '#ababab' : '#1f1f1f' }}
                 >
-                  <Bell size={20} />
+                  <Bell size={18} />
                   {unreadCount > 0 && (
-                    <span className="absolute top-1.5 right-1.5 px-1.5 py-0.5 text-[8px] font-black bg-accent text-black rounded-full border border-black min-w-[15px] h-3.5 flex items-center justify-center leading-none">
+                    <span className="absolute top-1 right-1 px-1 py-0.5 text-[8px] font-black bg-accent text-black rounded-full border border-black min-w-[14px] h-3.5 flex items-center justify-center leading-none">
                       {unreadCount}
                     </span>
                   )}
@@ -719,9 +736,9 @@ export default function TopNav({ broadcast, setBroadcast }) {
             <div className="relative" ref={dropdownRef}>
               <button
                 onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-                className="flex items-center gap-2 group p-1 rounded-full hover:bg-white/5 focus:outline-none focus:ring-0 focus-visible:outline-none focus-visible:ring-0 outline-none ring-0 bg-white/2"
+                className="flex items-center gap-2 group p-1 rounded-full hover:bg-white/5 focus:outline-none bg-white/2"
               >
-                <div className="w-9 h-9 rounded-full bg-accent flex items-center justify-center text-black font-black text-sm overflow-hidden shadow-xl">
+                <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-accent flex items-center justify-center text-black font-black text-xs sm:text-sm overflow-hidden shadow-xl">
                   {user?.avatar ? (
                     <img src={user.avatar} alt="Profile" className="w-full h-full object-cover" />
                   ) : (
@@ -731,10 +748,10 @@ export default function TopNav({ broadcast, setBroadcast }) {
               </button>
 
               {isDropdownOpen && (
-                <div className="absolute top-full right-0 mt-3 w-64 bg-bg-card border border-white/10 rounded-2xl shadow-2xl overflow-hidden backdrop-blur-3xl p-1.5">
-                  <div className="px-4 py-4 border-b border-white/5 mb-1.5">
+                <div className="absolute top-full right-0 mt-3 w-64 bg-bg-card border border-white/10 rounded-2xl shadow-2xl overflow-hidden backdrop-blur-3xl p-1.5 z-[100]">
+                  <div className="px-4 py-3.5 border-b border-white/5 mb-1.5">
                     <p className="text-sm font-black text-text-primary uppercase tracking-tighter truncate">{user?.name || 'Admin User'}</p>
-                    <p className="text-[10px] text-text-muted font-bold uppercase tracking-widest mt-0.5">{user?.email || `admin@${appName.toLowerCase().replace(/\s+/g, '')}.com`}</p>
+                    <p className="text-[10px] text-text-muted font-bold uppercase tracking-widest mt-0.5 truncate">{user?.email || `admin@${appName.toLowerCase().replace(/\s+/g, '')}.com`}</p>
                   </div>
 
                   <button
@@ -763,6 +780,91 @@ export default function TopNav({ broadcast, setBroadcast }) {
 
         </div>
       </nav>
+
+      {/* Mobile Navigation Drawer Overlay */}
+      {isMobileMenuOpen && (
+        <div
+          className="fixed left-0 right-0 z-[58] bg-black/95 backdrop-blur-2xl border-b border-white/10 p-4 shadow-2xl md:hidden overflow-y-auto max-h-[calc(100vh-80px)] transition-all animate-fade-in"
+          style={{ top: `${totalBannerHeight + 60}px` }}
+        >
+          <div className="space-y-1 py-1">
+            {navItems.map((item) => {
+              const isActive = pathname === item.href ||
+                (item.href !== '/dashboard' && pathname.startsWith(`${item.href}/`)) ||
+                (item.subItems?.some(sub => pathname === sub.href.split('?')[0]));
+              const hasSub = !!item.subItems;
+              const isAccordionOpen = mobileAccordion === item.label;
+
+              if (!hasSub) {
+                return (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    onClick={() => setIsMobileMenuOpen(false)}
+                    className={`flex items-center justify-between px-4 py-3 rounded-xl text-sm font-bold no-underline transition-all ${
+                      isActive ? 'bg-accent text-black shadow-lg shadow-accent/20' : 'text-gray-300 hover:bg-white/5 hover:text-white'
+                    }`}
+                  >
+                    <span>{item.label}</span>
+                    <ChevronRight size={16} className={isActive ? 'text-black' : 'text-gray-500'} />
+                  </Link>
+                );
+              }
+
+              return (
+                <div key={item.label} className="rounded-xl border border-white/5 overflow-hidden bg-white/[0.02]">
+                  <button
+                    onClick={() => setMobileAccordion(isAccordionOpen ? null : item.label)}
+                    className={`w-full flex items-center justify-between px-4 py-3 text-sm font-bold text-left transition-all ${
+                      isActive ? 'text-accent' : 'text-gray-200 hover:text-white'
+                    }`}
+                  >
+                    <span>{item.label}</span>
+                    <ChevronDown size={16} className={`transition-transform duration-200 ${isAccordionOpen ? 'rotate-180 text-accent' : 'text-gray-400'}`} />
+                  </button>
+
+                  {isAccordionOpen && (
+                    <div className="px-3 pb-3 space-y-1 border-t border-white/5 pt-2 bg-black/40">
+                      {item.subItems.map((sub) => {
+                        const [subPath] = sub.href.split('?');
+                        const isSubActive = pathname === subPath;
+                        return (
+                          <Link
+                            key={sub.href}
+                            href={sub.href}
+                            onClick={() => setIsMobileMenuOpen(false)}
+                            className={`flex items-center justify-between px-3.5 py-2.5 rounded-lg text-xs font-bold no-underline transition-all ${
+                              isSubActive ? 'bg-white/10 text-accent font-extrabold' : 'text-gray-400 hover:text-white hover:bg-white/5'
+                            }`}
+                          >
+                            <span>{sub.label}</span>
+                            <ChevronRight size={14} className="text-gray-600" />
+                          </Link>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+
+          <div className="pt-4 border-t border-white/10 mt-3 flex items-center justify-between">
+            <button
+              onClick={() => { setIsMobileMenuOpen(false); openSettings(); }}
+              className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white/5 text-gray-300 text-xs font-bold hover:bg-white/10 transition-all"
+            >
+              <Settings size={16} className="text-accent" /> Settings
+            </button>
+            <button
+              onClick={() => { setIsMobileMenuOpen(false); logout(); }}
+              className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-xs font-bold hover:bg-red-500/20 transition-all"
+            >
+              <LogOut size={16} /> Logout
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Backdrop blur overlay with opacity fade transition */}
       <div
