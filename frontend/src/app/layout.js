@@ -2,6 +2,7 @@ import { DM_Sans } from "next/font/google";
 import "./globals.css";
 import { AuthProvider } from "@/context/AuthContext";
 import { UIProvider } from "@/context/UIContext";
+import CustomScrollbar from "@/components/CustomScrollbar";
 
 // Enforce DD/MM/YYYY date format globally for both SSR and client-side rendering
 Date.prototype.toLocaleDateString = function () {
@@ -65,9 +66,11 @@ export default function RootLayout({ children }) {
         <AuthProvider>
           <UIProvider>
             {children}
+            <CustomScrollbar />
           </UIProvider>
         </AuthProvider>
       </body>
     </html>
   );
 }
+

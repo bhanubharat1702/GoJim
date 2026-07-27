@@ -1,8 +1,31 @@
 'use client';
 import { useState, useEffect } from 'react';
-import { Check } from 'lucide-react';
+import { Check, X, Users, MessageSquare, LineChart, Search, CalendarCheck } from 'lucide-react';
 import Link from 'next/link';
 import { superAdminApi } from '@/lib/api';
+
+const hasFeature = (plan, featureKey) => {
+  const planName = (plan.name || '').toLowerCase();
+  const isMidOrHigh = planName.includes('silver') || planName.includes('gold') || planName.includes('pro') || planName.includes('enterprise');
+  const isHigh = planName.includes('gold') || planName.includes('enterprise');
+  
+  switch(featureKey) {
+    case 'whatsapp':
+      return isMidOrHigh;
+    case 'runway':
+      return isMidOrHigh;
+    case 'trainer_split':
+      return isMidOrHigh;
+    case 'support_impersonation':
+      return isHigh;
+    case 'support_24_7':
+      return isMidOrHigh;
+    case 'custom_analytics':
+      return isHigh;
+    default:
+      return false;
+  }
+};
 
 export default function Pricing() {
   const [plans, setPlans] = useState([]);
@@ -14,7 +37,6 @@ export default function Pricing() {
       try {
         const res = await superAdminApi.getPublicPlans();
         if (res.success && res.data) {
-          // Only show Active plans
           const activePlans = res.data.filter(p => p.status === 'Active');
           setPlans(activePlans);
         }
@@ -38,14 +60,7 @@ export default function Pricing() {
       maxTrainers: 2,
       maxStaff: 2,
       trialDays: 14,
-      features: [
-        'No credit card required',
-        'Manage up to 10 members',
-        'Access basic gym analytics',
-        'Limited trainer scheduling tools',
-        'Free support',
-        'Track gym revenue'
-      ]
+      features: ['Leads Module', 'Attendance Module']
     },
     {
       _id: 'default-pro',
@@ -57,14 +72,7 @@ export default function Pricing() {
       maxTrainers: 10,
       maxStaff: 10,
       trialDays: 14,
-      features: [
-        'Manage up to 100 members',
-        'Advanced gym analytics',
-        'Unlimited trainer scheduling tools',
-        'Custom member insights',
-        'Priority support',
-        'Integrated marketing tools'
-      ]
+      features: ['Leads Module', 'Payments Module', 'Attendance Module', 'Trainer Module', 'Staff Module']
     },
     {
       _id: 'default-enterprise',
@@ -76,28 +84,78 @@ export default function Pricing() {
       maxTrainers: 999,
       maxStaff: 999,
       trialDays: 30,
-      features: [
-        'Unlimited members',
-        'Personalized dashboard',
-        'Custom reporting and analytics',
-        'Dedicated account manager',
-        '24/7 priority support',
-        'API integrations and more'
-      ]
+      features: ['Leads Module', 'Payments Module', 'Attendance Module', 'Trainer Module', 'Staff Module', 'Equipment Module']
     }
   ];
 
   const plansToDisplay = plans.length > 0 ? plans : defaultPlans;
+
+  const comparisonRows = [
+    {
+      name: 'Client Accounts Limit',
+      desc: 'Max active members in workspace',
+      icon: <Users size={16} />,
+      getValue: (plan) => plan.maxClients >= 9999 ? 'Unlimited' : `${plan.maxClients} Members`
+    },
+    {
+      name: 'Staff & Coach Limits',
+      desc: 'Total admin and trainer logins',
+      icon: <Users size={16} />,
+      getValue: (plan) => plan.maxTrainers >= 999 ? 'Unlimited' : `${plan.maxTrainers} of each`
+    },
+    {
+      name: 'Free Trial Period',
+      desc: 'Days to test features before subscription starts',
+      icon: <CalendarCheck size={16} />,
+      getValue: (plan) => `${plan.trialDays} Days`
+    },
+    {
+      name: 'WhatsApp Automation',
+      desc: 'Automatic expiration reminders & templates',
+      icon: <MessageSquare size={16} />,
+      featureKey: 'whatsapp'
+    },
+    {
+      name: 'Gym Income & Expenses',
+      desc: 'Overhead margin logs and cash alert flags',
+      icon: <LineChart size={16} />,
+      featureKey: 'runway'
+    },
+    {
+      name: 'Trainer Payout splits',
+      desc: 'Trainer base salaries and PT commissions splits',
+      icon: <LineChart size={16} />,
+      featureKey: 'trainer_split'
+    },
+    {
+      name: 'Remote Support Debugging',
+      desc: 'Secure admin support log impersonation',
+      icon: <Search size={16} />,
+      featureKey: 'support_impersonation'
+    },
+    {
+      name: '24/7 Priority Support',
+      desc: 'Rapid email and chat support access',
+      icon: <CalendarCheck size={16} />,
+      featureKey: 'support_24_7'
+    },
+    {
+      name: 'Advanced Analytics Reports',
+      desc: 'Custom reporting and predictive trends log',
+      icon: <LineChart size={16} />,
+      featureKey: 'custom_analytics'
+    }
+  ];
 
   return (
     <section className="py-24 px-4 w-full relative z-10 bg-bg-primary">
       <div className="max-w-6xl mx-auto">
         <div className="text-center mb-10 relative z-20">
           <h2 className="text-4xl md:text-5xl font-extrabold tracking-tight mb-4 text-text-primary">
-            Easy For Your Bank Account
+            Flexible Plans Built to Scale Your Gym
           </h2>
           <p className="text-text-muted text-[14px] md:text-[15px] max-w-2xl mx-auto font-medium leading-relaxed">
-            Our flexible pricing options ensure you have access to the features you need, without breaking the bank.
+            Choose a plan that fits your current needs and scale it as your membership grows. Start a 14-day free trial, no credit card required.
           </p>
         </div>
 
@@ -119,119 +177,103 @@ export default function Pricing() {
           </span>
         </div>
 
-        <div className={`grid grid-cols-1 gap-6 max-w-5xl mx-auto ${
-          plansToDisplay.length === 1 ? 'max-w-md' :
-          plansToDisplay.length === 2 ? 'md:grid-cols-2 max-w-3xl' :
-          'md:grid-cols-3'
-        }`}>
-          {plansToDisplay.map((plan, index) => {
-            const isPopular = plan.isPopular || (plansToDisplay.length === 3 && index === 1) || (plansToDisplay.length === 2 && index === 1);
-            
-            // Build dynamic features list if it is a fetched plan
-            const planFeatures = [...(plan.features || [])];
-            if (plans.length > 0) {
-              // Add limit features to front
-              planFeatures.unshift(
-                `Manage up to ${plan.maxClients} members`,
-                `Add up to ${plan.maxTrainers} trainers`,
-                `Add up to ${plan.maxStaff} staff members`,
-                `${plan.trialDays} days free trial`
-              );
-            }
+        {/* Dynamic Comparison Table */}
+        <div className="overflow-x-auto border border-white/10 rounded-2xl bg-[#0b0b0d] relative z-20 shadow-2xl">
+          <table className="w-full min-w-[800px] border-collapse text-left">
+            <thead>
+              <tr className="border-b border-white/10">
+                <th className="py-6 px-6 font-bold text-sm text-[#888888] w-[35%]">Features</th>
+                {plansToDisplay.map((plan, idx) => {
+                  const isFree = plan.monthlyPrice === 0 && plan.yearlyPrice === 0;
+                  const isEnterprise = plan.monthlyPrice === null || plan.monthlyPrice === undefined;
+                  const isPopular = (plansToDisplay.length === 3 && idx === 1) || (plansToDisplay.length === 2 && idx === 1);
 
-            const isFree = plan.monthlyPrice === 0 && plan.yearlyPrice === 0;
-            const isEnterprise = plan.monthlyPrice === null || plan.monthlyPrice === undefined;
-
-            return (
-              <div 
-                key={plan._id} 
-                className={`${
-                  isPopular 
-                    ? 'bg-bg-card border border-accent/40 shadow-[0_0_40px_rgba(var(--primary),0.03)] rounded-[24px] p-8 flex flex-col relative z-10 md:scale-105 transition-all duration-500' 
-                    : 'bg-bg-card border border-white/5 rounded-[24px] p-8 flex flex-col hover:border-accent/20 transition-all duration-300'
-                }`}
-              >
-                {isPopular && (
-                  <div className="absolute inset-0 bg-gradient-to-b from-accent/5 to-transparent rounded-[24px] pointer-events-none"></div>
-                )}
-                <div className="flex justify-between items-start mb-2 relative z-10">
-                  <h3 className="text-[22px] font-bold text-text-primary">{plan.name}</h3>
-                  {isPopular && (
-                    <span className="text-[8px] bg-accent text-black font-black uppercase tracking-wider px-2 py-0.5 rounded border border-accent">
-                      Popular
-                    </span>
-                  )}
-                </div>
-                <p className="text-text-muted text-[13px] mb-8 relative z-10">{plan.description || 'Flexible subscription tier'}</p>
-                
-                <div className="flex flex-col mb-6 relative z-10">
-                  {isFree ? (
-                    <div className="flex items-end gap-1">
-                      <span className="text-[44px] leading-none font-bold text-text-primary">₹0</span>
-                      <span className="text-text-muted text-[11px] mb-1 ml-1">forever</span>
-                    </div>
-                  ) : isEnterprise ? (
-                    <div className="flex items-end gap-1 h-[44px]">
-                      <span className="text-[28px] leading-none font-bold text-text-primary tracking-tight">Let&apos;s Talk</span>
-                    </div>
-                  ) : (
-                    <>
-                      <div className="flex items-end gap-1">
-                        <span className="text-text-muted text-[11px] font-bold mb-2">₹</span>
-                        <span className="text-[44px] leading-none font-bold text-text-primary">
-                          {billingCycle === 'monthly' ? plan.monthlyPrice : plan.yearlyPrice}
+                  return (
+                    <th key={plan._id} className="py-6 px-4 text-center">
+                      <div className="flex flex-col items-center">
+                        <span className={`text-[15px] font-black uppercase tracking-wider mb-2 ${isPopular ? 'text-accent' : 'text-white'}`}>
+                          {plan.name}
                         </span>
-                        <span className="text-text-muted text-[11px] mb-1 ml-1">
-                          {billingCycle === 'monthly' ? 'per month' : 'per year'}
-                        </span>
+                        <div className="flex items-end justify-center mb-4">
+                          {isFree ? (
+                            <span className="text-2xl font-extrabold text-white">₹0</span>
+                          ) : isEnterprise ? (
+                            <span className="text-lg font-extrabold text-white">Custom</span>
+                          ) : (
+                            <>
+                              <span className="text-2xl font-extrabold text-white">
+                                ₹{billingCycle === 'monthly' ? plan.monthlyPrice : plan.yearlyPrice}
+                              </span>
+                              <span className="text-[10px] text-zinc-500 ml-1">
+                                /{billingCycle === 'monthly' ? 'mo' : 'yr'}
+                              </span>
+                            </>
+                          )}
+                        </div>
+                        {isEnterprise ? (
+                          <Link
+                            href="/contact"
+                            className="px-4 py-2.5 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-white border border-zinc-700 text-xs font-extrabold transition-all w-full max-w-[150px] text-center hover:scale-[1.02] active:scale-[0.98]"
+                          >
+                            Contact Us
+                          </Link>
+                        ) : (
+                          <Link
+                            href="/signup"
+                            onClick={() => {
+                              if (typeof window !== 'undefined') {
+                                localStorage.setItem('selectedPlanId', plan._id);
+                              }
+                            }}
+                            className={`px-3 py-2.5 rounded-xl text-xs font-extrabold transition-all w-full max-w-[150px] whitespace-nowrap text-center hover:scale-[1.02] active:scale-[0.98] ${
+                              isPopular
+                                ? 'bg-accent hover:bg-accent-hover text-black shadow-lg shadow-accent/20'
+                                : 'bg-zinc-800 hover:bg-zinc-700 text-white border border-zinc-700'
+                            }`}
+                          >
+                            Start {plan.trialDays ? `${plan.trialDays}-Day ` : ''}Trial
+                          </Link>
+                        )}
                       </div>
-                      {billingCycle === 'yearly' && plan.monthlyPrice && (
-                        <span className="text-[10px] text-text-muted mt-1">
-                          (equivalent to ₹{Math.round(plan.yearlyPrice / 12)}/month)
+                    </th>
+                  );
+                })}
+              </tr>
+            </thead>
+            <tbody>
+              {comparisonRows.map((row, rIdx) => (
+                <tr 
+                  key={rIdx} 
+                  className={`border-b border-white/5 hover:bg-white/[0.01] transition-colors ${
+                    rIdx === comparisonRows.length - 1 ? 'border-b-0' : ''
+                  }`}
+                >
+                  <td className="py-5 px-6 flex items-start gap-3">
+                    <div className="mt-0.5 text-accent shrink-0">
+                      {row.icon}
+                    </div>
+                    <div>
+                      <strong className="text-white block text-sm font-bold tracking-tight">{row.name}</strong>
+                      <span className="text-zinc-500 text-[11px] font-medium leading-normal">{row.desc}</span>
+                    </div>
+                  </td>
+                  {plansToDisplay.map((plan) => (
+                    <td key={plan._id} className="py-5 px-4 text-center align-middle">
+                      {row.getValue ? (
+                        <span className="text-[13px] text-zinc-300 font-bold">
+                          {row.getValue(plan)}
                         </span>
+                      ) : hasFeature(plan, row.featureKey) ? (
+                        <Check size={16} className="text-accent mx-auto" strokeWidth={3} />
+                      ) : (
+                        <X size={16} className="text-red-500/80 mx-auto" strokeWidth={3} />
                       )}
-                    </>
-                  )}
-                </div>
-
-                <div className="h-[1px] w-full bg-white/5 mb-8 relative z-10"></div>
-                
-                <ul className="flex flex-col gap-5 mb-10 flex-1 relative z-10">
-                  {planFeatures.map((feature, i) => (
-                    <li key={i} className="flex items-start gap-3 text-[13px] text-text-secondary">
-                      <Check size={18} strokeWidth={3} className="text-accent shrink-0 mt-[2px]" />
-                      <span>{feature}</span>
-                    </li>
+                    </td>
                   ))}
-                </ul>
-
-                {isEnterprise ? (
-                  <Link 
-                    href="/contact" 
-                    className="w-full py-3.5 px-4 rounded-xl bg-white/5 hover:bg-white/10 text-text-primary text-[14px] font-bold transition-colors text-center border border-white/5 relative z-10"
-                  >
-                    Contact Sales
-                  </Link>
-                ) : (
-                  <Link 
-                    href="/signup" 
-                    onClick={() => {
-                      if (typeof window !== 'undefined') {
-                        localStorage.setItem('selectedPlanId', plan._id);
-                      }
-                    }}
-                    className={`${
-                      isPopular 
-                        ? 'w-full py-3.5 px-4 rounded-xl bg-accent hover:bg-accent-hover text-black text-[14px] font-bold transition-all text-center relative z-10 shadow-lg shadow-accent/20 active:scale-95'
-                        : 'w-full py-3.5 px-4 rounded-xl bg-white/5 hover:bg-white/10 text-text-primary text-[14px] font-bold transition-colors text-center border border-white/5 relative z-10'
-                    }`}
-                  >
-                    Start {plan.trialDays ? `${plan.trialDays}-Day ` : ''}Free Trial
-                  </Link>
-                )}
-              </div>
-            );
-          })}
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       </div>
     </section>

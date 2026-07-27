@@ -15,6 +15,7 @@ export function AuthProvider({ children }) {
     if (res.success) {
       localStorage.setItem('gojim_token', res.token);
       localStorage.setItem('gojim_user', JSON.stringify(res.user));
+      localStorage.setItem('gojim_last_activity', Date.now().toString());
       setToken(res.token);
       setUser(res.user);
     }
@@ -26,6 +27,7 @@ export function AuthProvider({ children }) {
     if (res.success) {
       localStorage.setItem('gojim_token', res.token);
       localStorage.setItem('gojim_user', JSON.stringify(res.user));
+      localStorage.setItem('gojim_last_activity', Date.now().toString());
       setToken(res.token);
       setUser(res.user);
     }
@@ -40,6 +42,7 @@ export function AuthProvider({ children }) {
     } finally {
       localStorage.removeItem('gojim_token');
       localStorage.removeItem('gojim_user');
+      localStorage.removeItem('gojim_last_activity');
       setToken(null);
       setUser(null);
     }
@@ -57,9 +60,21 @@ export function AuthProvider({ children }) {
   useEffect(() => {
     const savedToken = localStorage.getItem('gojim_token');
     const savedUser = localStorage.getItem('gojim_user');
+    const lastActivity = localStorage.getItem('gojim_last_activity');
     if (savedToken && savedUser) {
-      setToken(savedToken);
-      setUser(JSON.parse(savedUser));
+      const now = Date.now();
+      const oneHour = 3600000;
+      if (lastActivity && (now - parseInt(lastActivity, 10) > oneHour)) {
+        localStorage.removeItem('gojim_token');
+        localStorage.removeItem('gojim_user');
+        localStorage.removeItem('gojim_last_activity');
+        setToken(null);
+        setUser(null);
+      } else {
+        setToken(savedToken);
+        setUser(JSON.parse(savedUser));
+        localStorage.setItem('gojim_last_activity', now.toString());
+      }
     }
     setLoading(false);
   }, []);
@@ -69,10 +84,17 @@ export function AuthProvider({ children }) {
     if (!token) return;
 
     let timeoutId;
+    let lastStorageWrite = 0;
 
-    const resetInactivityTimer = () => {
+    const resetInactivityTimer = (updateStorage = true) => {
       if (timeoutId) clearTimeout(timeoutId);
       
+      const now = Date.now();
+      if (updateStorage && (now - lastStorageWrite > 10000)) {
+        localStorage.setItem('gojim_last_activity', now.toString());
+        lastStorageWrite = now;
+      }
+
       // Set timeout for 1 hour (3,600,000 milliseconds)
       timeoutId = setTimeout(() => {
         console.log('Session expired due to 1 hour of inactivity');
@@ -84,19 +106,34 @@ export function AuthProvider({ children }) {
     const events = ['mousemove', 'keydown', 'click', 'scroll', 'touchstart'];
     
     // Initialize timer on load
-    resetInactivityTimer();
+    resetInactivityTimer(true);
+
+    const handleInteraction = () => {
+      resetInactivityTimer(true);
+    };
 
     // Attach interaction event listeners
     events.forEach(event => {
-      window.addEventListener(event, resetInactivityTimer);
+      window.addEventListener(event, handleInteraction);
     });
+
+    // Synchronize inactivity and logout across multiple tabs
+    const handleStorageChange = (e) => {
+      if (e.key === 'gojim_last_activity' && e.newValue) {
+        resetInactivityTimer(false);
+      } else if (e.key === 'gojim_token' && !e.newValue) {
+        logout();
+      }
+    };
+    window.addEventListener('storage', handleStorageChange);
 
     // Cleanup listeners and clear timer on logout or token changes
     return () => {
       if (timeoutId) clearTimeout(timeoutId);
       events.forEach(event => {
-        window.removeEventListener(event, resetInactivityTimer);
+        window.removeEventListener(event, handleInteraction);
       });
+      window.removeEventListener('storage', handleStorageChange);
     };
   }, [token, logout]);
 

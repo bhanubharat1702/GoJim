@@ -23,12 +23,72 @@ const YoutubeIcon = () => (
 
 export default function Footer() {
   const [appName, setAppName] = useState('goJim');
+  const [logo, setLogo] = useState('');
+  const [logoBg, setLogoBg] = useState('');
+  const [supportPhone, setSupportPhone] = useState('');
+  const [hasMounted, setHasMounted] = useState(false);
+
+  const footerLinks = [
+    { name: 'Home', id: 'home', href: '#home' },
+    { name: 'Features', id: 'features', href: '#features' },
+    { name: 'Pricing', id: 'pricing', href: '#pricing' },
+    { name: 'Testimonials', id: 'testimonials', href: '#testimonials' },
+  ];
+
+  const scrollToSection = (e, id) => {
+    e.preventDefault();
+    const element = document.getElementById(id);
+    if (element) {
+      const offset = 90;
+      const bodyRect = document.body.getBoundingClientRect().top;
+      const elementRect = element.getBoundingClientRect().top;
+      const elementPosition = elementRect - bodyRect;
+      const offsetPosition = elementPosition - offset;
+
+      window.scrollTo({
+        top: offsetPosition,
+        behavior: 'smooth'
+      });
+    }
+  };
 
   useEffect(() => {
+    // Read from cache synchronously on client-side mount
+    const cachedName = localStorage.getItem('gojim_public_app_name');
+    if (cachedName) setAppName(cachedName);
+    const cachedLogo = localStorage.getItem('gojim_public_logo');
+    if (cachedLogo) setLogo(cachedLogo);
+    const cachedLogoBg = localStorage.getItem('gojim_public_logo_bg');
+    if (cachedLogoBg) setLogoBg(cachedLogoBg);
+    const cachedPhone = localStorage.getItem('gojim_public_support_phone');
+    if (cachedPhone) setSupportPhone(cachedPhone);
+    setHasMounted(true);
+
     superAdminApi.getPublicSettings()
       .then(res => {
-        if (res.success && res.data?.appName) {
-          setAppName(res.data.appName);
+        if (res.success) {
+          if (res.data?.appName) {
+            setAppName(res.data.appName);
+            localStorage.setItem('gojim_public_app_name', res.data.appName);
+          }
+          if (res.data?.logo) {
+            setLogo(res.data.logo);
+            localStorage.setItem('gojim_public_logo', res.data.logo);
+          } else {
+            localStorage.removeItem('gojim_public_logo');
+          }
+          if (res.data?.logoBg) {
+            setLogoBg(res.data.logoBg);
+            localStorage.setItem('gojim_public_logo_bg', res.data.logoBg);
+          } else {
+            localStorage.removeItem('gojim_public_logo_bg');
+          }
+          if (res.data?.supportPhone) {
+            setSupportPhone(res.data.supportPhone);
+            localStorage.setItem('gojim_public_support_phone', res.data.supportPhone);
+          } else {
+            localStorage.removeItem('gojim_public_support_phone');
+          }
         }
       })
       .catch(() => {});
@@ -62,69 +122,46 @@ export default function Footer() {
           </div>
         </div>
 
-        {/* Links Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-12 mb-16">
+        {/* Bottom Bar / Unified Footer */}
+        <div className="pt-8 border-t border-white/5 flex flex-col md:flex-row items-center justify-between gap-8">
           
-          {/* Brand */}
-          <div className="lg:col-span-1">
-            <Link href="/" className="flex items-center gap-3 no-underline">
-              <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-accent to-accent-dark flex items-center justify-center text-base shadow-inner">
-                💪
+          {/* Left Column: Brand & Support */}
+          <div className="flex flex-col items-center md:items-start gap-2">
+            <Link href="/" className={`flex items-center gap-3 no-underline transition-opacity duration-150 ${hasMounted ? 'opacity-100' : 'opacity-0'}`}>
+              <div 
+                className={`w-8 h-8 rounded-lg flex items-center justify-center text-base font-extrabold text-white shadow-inner overflow-hidden ${(!logoBg && !logo) ? 'bg-gradient-to-br from-accent to-accent-dark' : 'bg-transparent'}`}
+                style={logoBg ? { background: logoBg, backgroundColor: logoBg } : undefined}
+              >
+                {logo ? (
+                  <img src={logo} alt={appName} className="w-full h-full object-cover" />
+                ) : (
+                  (appName || 'goJim')[0]?.toUpperCase()
+                )}
               </div>
               <span className="font-extrabold text-xl tracking-tight text-text-primary">{appName}</span>
             </Link>
+            {supportPhone && (
+              <p className="text-xs text-text-muted mt-1 font-semibold text-center md:text-left">
+                Support: <a href={`tel:${supportPhone}`} className="hover:text-accent transition-colors">{supportPhone}</a>
+              </p>
+            )}
           </div>
 
-          {/* Product */}
-          <div>
-            <h4 className="font-bold text-sm mb-6 text-text-muted uppercase tracking-wider">Product</h4>
-            <ul className="space-y-4 text-sm font-medium">
-              <li><Link href="#features" className="text-text-secondary hover:text-text-primary transition-colors">Features</Link></li>
-              <li><Link href="#pricing" className="text-text-secondary hover:text-text-primary transition-colors">Pricing</Link></li>
-              <li><Link href="/login" className="text-text-secondary hover:text-text-primary transition-colors">Dashboard</Link></li>
-              <li><Link href="/login" className="text-text-secondary hover:text-text-primary transition-colors">Class Scheduling</Link></li>
-            </ul>
+          {/* Center Column: Section Navigation Links */}
+          <div className="flex flex-wrap items-center justify-center gap-6 text-sm font-semibold">
+            {footerLinks.map((link) => (
+              <Link
+                key={link.id}
+                href={link.href}
+                onClick={(e) => scrollToSection(e, link.id)}
+                className="text-text-secondary hover:text-text-primary transition-colors no-underline"
+              >
+                {link.name}
+              </Link>
+            ))}
           </div>
 
-          {/* Developers */}
-          <div>
-            <h4 className="font-bold text-sm mb-6 text-text-muted uppercase tracking-wider">Developers</h4>
-            <ul className="space-y-4 text-sm font-medium">
-              <li><Link href="#" className="text-text-secondary hover:text-text-primary transition-colors">API Documentation</Link></li>
-              <li><Link href="#" className="text-text-secondary hover:text-text-primary transition-colors">Support</Link></li>
-              <li><Link href="#" className="text-text-secondary hover:text-text-primary transition-colors">Changelog</Link></li>
-              <li><Link href="#" className="text-text-secondary hover:text-text-primary transition-colors">Developer Forum</Link></li>
-            </ul>
-          </div>
-
-          {/* Company */}
-          <div>
-            <h4 className="font-bold text-sm mb-6 text-text-muted uppercase tracking-wider">Company</h4>
-            <ul className="space-y-4 text-sm font-medium">
-              <li><Link href="#" className="text-text-secondary hover:text-text-primary transition-colors">About Us</Link></li>
-              <li><Link href="#" className="text-text-secondary hover:text-text-primary transition-colors">Careers</Link></li>
-              <li><Link href="#blog" className="text-text-secondary hover:text-text-primary transition-colors">Blog</Link></li>
-              <li><Link href="#" className="text-text-secondary hover:text-text-primary transition-colors">Contact</Link></li>
-            </ul>
-          </div>
-
-          {/* Legal */}
-          <div>
-            <h4 className="font-bold text-sm mb-6 text-text-muted uppercase tracking-wider">Legal</h4>
-            <ul className="space-y-4 text-sm font-medium">
-              <li><Link href="#" className="text-text-secondary hover:text-text-primary transition-colors">Terms of Service</Link></li>
-              <li><Link href="#" className="text-text-secondary hover:text-text-primary transition-colors">Privacy Policy</Link></li>
-              <li><Link href="#" className="text-text-secondary hover:text-text-primary transition-colors">Data Protection</Link></li>
-              <li><Link href="#" className="text-text-secondary hover:text-text-primary transition-colors">Cookie Policy</Link></li>
-            </ul>
-          </div>
-        </div>
-
-        {/* Bottom Bar */}
-        <div className="pt-8 border-t border-white/5 flex flex-col md:row items-center justify-between gap-6">
-          <p className="text-gray-600 text-xs font-medium">
-            © 2024 {appName}. All rights reserved.
-          </p>
+          {/* Right Column: Social Links */}
           <div className="flex items-center gap-6 text-gray-600">
             <Link href="#" className="hover:text-white transition-colors"><FacebookIcon /></Link>
             <Link href="#" className="hover:text-white transition-colors"><InstagramIcon /></Link>
@@ -132,6 +169,13 @@ export default function Footer() {
             <Link href="#" className="hover:text-white transition-colors"><LinkedinIcon /></Link>
             <Link href="#" className="hover:text-white transition-colors"><YoutubeIcon /></Link>
           </div>
+        </div>
+
+        {/* Copyright Section */}
+        <div className="pt-8 border-t border-white/5 mt-8 text-center">
+          <p className="text-gray-600 text-xs font-medium">
+            © 2024 {appName}. All rights reserved.
+          </p>
         </div>
 
       </div>
