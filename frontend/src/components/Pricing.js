@@ -36,12 +36,14 @@ export default function Pricing() {
     const fetchPlans = async () => {
       try {
         const res = await superAdminApi.getPublicPlans();
-        if (res.success && res.data) {
+        if (res && res.success && Array.isArray(res.data)) {
           const activePlans = res.data.filter(p => p.status === 'Active');
-          setPlans(activePlans);
+          if (activePlans.length > 0) {
+            setPlans(activePlans);
+          }
         }
       } catch (err) {
-        console.error('Failed to fetch public subscription plans:', err);
+        // Fallback to default plans silently when backend is unavailable
       } finally {
         setLoading(false);
       }

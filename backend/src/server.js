@@ -142,6 +142,7 @@ app.use('/api/expense-categories', require('./routes/expenseCategories'));
 app.use('/api/plans', require('./routes/plans'));
 app.use('/api/equipment', require('./routes/equipment'));
 app.use('/api/super-admin', require('./routes/superAdmin'));
+app.use('/api/upload', require('./routes/upload'));
 
 // Health check endpoint (for keep-alive cron pings)
 app.get('/api/health', (req, res) => {

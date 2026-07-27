@@ -209,7 +209,7 @@ export const superAdminApi = {
   deleteOwner: (id) => api.delete(`/super-admin/owners/${id}`),
   impersonate: (id) => api.post(`/super-admin/owners/${id}/impersonate`, {}),
   getPlans: () => api.get('/super-admin/plans'),
-  getPublicPlans: () => api.get('/super-admin/plans/public'),
+  getPublicPlans: (options = { silent: true }) => api.get('/super-admin/plans/public', options),
   createPlan: (data) => api.post('/super-admin/plans', data),
   updatePlan: (id, data) => api.put(`/super-admin/plans/${id}`, data),
   deletePlan: (id) => api.delete(`/super-admin/plans/${id}`),
@@ -226,6 +226,12 @@ export const superAdminApi = {
 export const analyticsApi = {
   getDashboard1: (params = '') => api.get(`/analytics/dashboard1?${params}`),
   getVisuals: (params = '') => api.get(`/analytics/visuals?${params}`),
+};
+
+// Upload
+export const uploadApi = {
+  uploadImage: (image, folder = 'gojim_uploads') => api.post('/upload/image', { image, folder }),
+  deleteImage: (public_id) => api.request('/upload/image', { method: 'DELETE', body: JSON.stringify({ public_id }) }),
 };
 
 export default api;
