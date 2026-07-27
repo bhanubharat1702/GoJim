@@ -206,6 +206,7 @@ export default function LandingPage() {
   }, [isAuthenticated, router]);
 
   const scrollToSection = (e, id) => {
+    document.body.style.overflow = '';
     const element = document.getElementById(id);
     if (element) {
       e.preventDefault();
@@ -499,7 +500,7 @@ export default function LandingPage() {
               initial="closed"
               animate="open"
               exit="exit"
-              className="fixed inset-0 z-[9999] bg-black/98 backdrop-blur-2xl md:hidden flex flex-col justify-between pt-24 px-8 pb-20"
+              className="fixed inset-0 z-[9999] bg-black/98 backdrop-blur-2xl md:hidden flex flex-col justify-between pt-24 px-8 pb-20 pointer-events-auto"
             >
 
               <div className="flex flex-col gap-6 mt-8 mb-auto text-left pl-4 w-full">
@@ -538,7 +539,7 @@ export default function LandingPage() {
                         setIsMobileMenuOpen(false);
                         scrollToSection(e, link.id);
                       }}
-                      className="no-underline group flex items-center gap-4 py-2"
+                      className="no-underline group flex items-center gap-4 py-2 cursor-pointer"
                     >
                       <span className={`text-3xl font-black tracking-tight transition-colors duration-300 ${activeSection === link.id ? 'text-white' : 'text-zinc-600 group-hover:text-white'
                         }`}>
@@ -593,7 +594,7 @@ export default function LandingPage() {
                   <Link
                     href="/login"
                     onClick={() => setIsMobileMenuOpen(false)}
-                    className="w-full block py-4 rounded-xl text-center text-base font-bold text-gray-305 hover:text-white hover:bg-white/5 no-underline border border-white/10 bg-white/5 transition-all"
+                    className="w-full block py-4 rounded-xl text-center text-base font-bold text-gray-300 hover:text-white hover:bg-white/5 no-underline border border-white/10 bg-white/5 transition-all cursor-pointer"
                   >
                     Login
                   </Link>
@@ -633,7 +634,7 @@ export default function LandingPage() {
                       setIsMobileMenuOpen(false);
                       scrollToSection(e, 'pricing');
                     }}
-                    className="w-full block py-4 rounded-xl text-center text-base font-black bg-accent hover:bg-accent-light text-black no-underline shadow-lg shadow-accent/20 active:scale-95 transition-all"
+                    className="w-full block py-4 rounded-xl text-center text-base font-black bg-accent hover:bg-accent-light text-black no-underline shadow-lg shadow-accent/20 active:scale-95 transition-all cursor-pointer"
                   >
                     Request a Demo
                   </Link>
