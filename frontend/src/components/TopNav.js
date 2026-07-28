@@ -82,6 +82,21 @@ export default function TopNav({ broadcast, setBroadcast }) {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [isImpersonating, setIsImpersonating] = useState(false);
   const [appName, setAppName] = useState('goJim');
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    const handleResize = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+    handleResize();
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  const visibleNavItems = isMobile
+    ? navItems.filter(item => item.label !== 'BI & Analytics')
+    : navItems;
+
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -473,7 +488,10 @@ export default function TopNav({ broadcast, setBroadcast }) {
         const query = searchQuery.trim().toLowerCase();
 
         // Match pages list locally for instant feedback
-        const matchedPages = pagesList.filter(p =>
+        const filteredPagesList = isMobile
+          ? pagesList.filter(p => p.href !== '/dashboard1' && p.href !== '/analytics')
+          : pagesList;
+        const matchedPages = filteredPagesList.filter(p =>
           p.label.toLowerCase().includes(query) ||
           p.keywords.some(k => k.includes(query))
         ).slice(0, 4);
@@ -742,7 +760,7 @@ export default function TopNav({ broadcast, setBroadcast }) {
           </div>
 
           <div className="flex rounded-full p-1 items-center gap-1 shadow-2xl backdrop-blur-md" style={{ backgroundColor: '#1f1f1f' }} ref={subMenuRef}>
-            {navItems.map((item) => {
+            {visibleNavItems.map((item) => {
               const isActive = pathname === item.href ||
                 pathname === `${item.href}/` ||
                 (item.href !== '/dashboard' && pathname.startsWith(`${item.href}/`)) ||
@@ -928,7 +946,7 @@ export default function TopNav({ broadcast, setBroadcast }) {
             className="fixed inset-0 z-[9999] bg-black/98 backdrop-blur-2xl md:hidden flex flex-col justify-between pt-24 px-8 pb-20 pointer-events-auto overflow-y-auto"
           >
             <div className="flex flex-col gap-6 mt-8 mb-auto text-left pl-4 w-full">
-              {navItems.map((item, i) => {
+              {visibleNavItems.map((item, i) => {
                 const isActive = pathname === item.href ||
                   (item.href !== '/dashboard' && pathname.startsWith(`${item.href}/`)) ||
                   (item.subItems?.some(sub => pathname === sub.href.split('?')[0]));
@@ -954,7 +972,7 @@ export default function TopNav({ broadcast, setBroadcast }) {
                           x: 80,
                           opacity: 0,
                           transition: {
-                            delay: (navItems.length - i) * 0.03,
+                            delay: (visibleNavItems.length - i) * 0.03,
                             duration: 0.25,
                             ease: [0.76, 0, 0.24, 1]
                           }
@@ -994,7 +1012,7 @@ export default function TopNav({ broadcast, setBroadcast }) {
                         x: 80,
                         opacity: 0,
                         transition: {
-                          delay: (navItems.length - i) * 0.03,
+                          delay: (visibleNavItems.length - i) * 0.03,
                           duration: 0.25,
                           ease: [0.76, 0, 0.24, 1]
                         }

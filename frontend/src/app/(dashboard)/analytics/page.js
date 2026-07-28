@@ -1,5 +1,6 @@
 'use client';
 import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { analyticsApi } from '@/lib/api';
 import {
   Compass, Clock, Calendar, Users, IndianRupee, AlertCircle, ShieldAlert,
@@ -7,6 +8,14 @@ import {
 } from 'lucide-react';
 
 export default function AnalyticsPage() {
+  const router = useRouter();
+
+  useEffect(() => {
+    if (typeof window !== 'undefined' && window.innerWidth < 768) {
+      router.replace('/dashboard');
+    }
+  }, [router]);
+
   const [filter, setFilter] = useState('month');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');

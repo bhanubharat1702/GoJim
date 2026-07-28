@@ -6,7 +6,7 @@ import { PageHeader, SearchBar, Loader, Modal, Badge, EmptyState, DatePicker, Se
 import { cleanPhone, validatePhone } from '@/lib/utils';
 import { useAuth } from '@/context/AuthContext';
 import {
-  Users, Calendar, UserPlus, Banknote, Zap,
+  Users, Calendar, UserPlus, Banknote, Zap, Search,
   CreditCard, Landmark, Filter, Activity,
   Tag, RefreshCw, SortDesc, User, Edit3, Eye, Dumbbell, MessageCircle, Trash2,
   UserCheck, UserMinus, UserX, TrendingUp, TrendingDown,
@@ -147,6 +147,28 @@ export default function MembersPage() {
     const latestPayment = paymentMap[key];
     if (!latestPayment) return null; // no paid payment on record
     return latestPayment.newExpiry ? new Date(latestPayment.newExpiry) : (m.planExpiry ? new Date(m.planExpiry) : null);
+  };
+
+  const getTabCounts = useMemo(() => {
+    return {
+      all: stats?.totalMembers || 0,
+      active: stats?.activeMembers || 0,
+      inactive: stats?.inactiveMembers || 0,
+      expiring: stats?.expiringSoon || 0
+    };
+  }, [stats]);
+
+  const getTabValues = (tabName) => {
+    switch (tabName) {
+      case 'active':
+        return { statusFilter: 'paid', filter: 'active' };
+      case 'inactive':
+        return { statusFilter: 'inactive', filter: 'inactive' };
+      case 'due_soon':
+        return { statusFilter: 'due_soon', filter: 'expiring' };
+      default:
+        return { statusFilter: 'all', filter: 'all' };
+    }
   };
 
   const filteredMembers = useMemo(() => {
@@ -845,7 +867,8 @@ export default function MembersPage() {
 
         {/* Top Header & Stats Row */}
         <div className="py-4 px-6 border-b border-white/5 space-y-4">
-          <div className="flex flex-col md:flex-row items-center justify-between gap-4">
+          {/* Desktop & Laptop Header */}
+          <div className="hidden md:flex flex-col md:flex-row items-center justify-between gap-4">
             <div>
               <h1 className="text-3xl font-black text-text-primary tracking-tight">Clients</h1>
               <div className="flex items-center gap-2 text-[10px] font-black text-text-muted uppercase tracking-widest mt-1 opacity-70">
@@ -853,7 +876,7 @@ export default function MembersPage() {
                 Listing <span className="text-white">{filteredMembers.length}</span> total entries
               </div>
             </div>
-            <div className="flex items-center gap-3">
+            <div className="flex flex-wrap items-center gap-3 w-full md:w-auto justify-center md:justify-end">
               <SearchBar value={search} onChange={setSearch} placeholder="Search members..." />
 
               {/* Status Filter Dropdown */}
@@ -1076,6 +1099,248 @@ export default function MembersPage() {
             </div>
           </div>
 
+          {/* Mobile View Header & Filters (Layout matching user screenshot, using system colors) */}
+          <div className="block md:hidden space-y-4">
+            {/* Title & Info */}
+            <div className="px-2">
+              <h1 className="text-2xl font-black text-text-primary tracking-tight">Clients</h1>
+              <p className="text-[9px] font-black text-text-muted uppercase tracking-widest mt-1 opacity-70">
+                Listing <span className="text-white">{filteredMembers.length}</span> total entries
+              </p>
+            </div>
+
+            {/* Mobile View Tabs (Underlined, inline tabs) */}
+            <div className="flex border-b border-white/5 overflow-x-auto no-scrollbar gap-5 px-2 pt-1 text-[11px] font-black uppercase tracking-wider">
+              {['all', 'active', 'inactive', 'due_soon'].map(tabVal => {
+                const isActive = tabVal === 'all' ? statusFilter === 'all'
+                               : tabVal === 'active' ? statusFilter === 'paid'
+                               : tabVal === 'inactive' ? statusFilter === 'inactive'
+                               : statusFilter === 'due_soon';
+                const label = tabVal === 'all' ? 'All' : tabVal === 'active' ? 'Active' : tabVal === 'inactive' ? 'Inactive' : 'Expiring';
+                const count = tabVal === 'all' ? getTabCounts.all : tabVal === 'active' ? getTabCounts.active : tabVal === 'inactive' ? getTabCounts.inactive : getTabCounts.expiring;
+                
+                return (
+                  <button
+                    key={tabVal}
+                    type="button"
+                    onClick={() => {
+                      const vals = getTabValues(tabVal);
+                      setStatusFilter(vals.statusFilter);
+                      setFilter(vals.filter);
+                    }}
+                    className={`pb-2.5 relative cursor-pointer font-black transition-all border-none bg-transparent outline-none whitespace-nowrap ${
+                      isActive ? 'text-accent' : 'text-text-muted hover:text-white'
+                    }`}
+                  >
+                    <span>{label}</span>
+                    <span className="ml-1 opacity-60 text-[9px] font-bold">{count}</span>
+                    {isActive && (
+                      <div className="absolute bottom-0 left-0 right-0 h-[2px] bg-accent rounded-full" />
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Full Width Search Bar */}
+            <div className="relative w-full px-2">
+              <Search className="absolute left-6 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted" />
+              <input
+                type="text"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Search clients..."
+                className="w-full pl-11 pr-4 py-2.5 bg-white/[0.02] border border-white/5 rounded-xl text-xs font-semibold focus:border-accent/30 focus:outline-none transition-all placeholder-text-muted text-white"
+              />
+            </div>
+
+            {/* Inline Filter Buttons */}
+            <div className="flex gap-2 overflow-x-auto no-scrollbar px-2 pb-1">
+              {/* Date Filter Button */}
+              <div className="relative" id="mobile-date-filter-container">
+                <button
+                  type="button"
+                  onClick={() => { setShowDateFilterPopover(!showDateFilterPopover); setShowStatusFilterPopover(false); }}
+                  className={`flex items-center gap-1.5 px-3 py-2 bg-white/[0.02] border border-white/5 hover:bg-white/10 text-white rounded-xl text-[9px] font-black uppercase tracking-wider transition-all cursor-pointer whitespace-nowrap ${dateFilterType !== 'all' ? 'border-accent/40 bg-accent/5 text-accent' : ''}`}
+                >
+                  <Calendar size={12} className={dateFilterType !== 'all' ? 'text-accent' : 'text-text-muted'} />
+                  <span>{getDateFilterLabel()}</span>
+                  <ChevronDown size={10} className="text-text-muted opacity-60" />
+                </button>
+                {showDateFilterPopover && (
+                  <>
+                    <div className="fixed inset-0 z-[110]" onClick={() => setShowDateFilterPopover(false)} />
+                    <div className="absolute left-0 mt-2 z-[120] bg-gradient-to-br from-[#1a1a1a] to-[#0a0a0a] border border-white/10 rounded-2xl p-4 shadow-[0_20px_50px_rgba(0,0,0,0.5)] backdrop-blur-3xl w-72 space-y-3">
+                      <div>
+                        <h4 className="text-[9px] font-black text-text-muted uppercase tracking-[0.2em] mb-1.5">Filter By Date</h4>
+                        <Select
+                          value={dateFilterType}
+                          searchable={false}
+                          options={[
+                            { label: 'All Time', value: 'all' },
+                            { label: 'Specific Date', value: 'date' },
+                            { label: 'Specific Month', value: 'month' },
+                            { label: 'Complete Year', value: 'year' },
+                            { label: 'Custom Range', value: 'range' },
+                          ]}
+                          onChange={(val) => setDateFilterType(val)}
+                        />
+                      </div>
+
+                      {dateFilterType === 'date' && (
+                        <div className="space-y-1 animate-in fade-in duration-200">
+                          <p className="text-[9px] font-black text-text-muted uppercase tracking-widest ml-1">Select Date</p>
+                          <DatePicker
+                            value={selectedDate}
+                            onChange={setSelectedDate}
+                            placeholder="Pick a Date"
+                            className="w-full"
+                          />
+                        </div>
+                      )}
+
+                      {dateFilterType === 'month' && (
+                        <div className="grid grid-cols-2 gap-2 animate-in fade-in duration-200">
+                          <div className="space-y-1">
+                            <p className="text-[9px] font-black text-text-muted uppercase tracking-widest ml-1">Month</p>
+                            <Select
+                              value={selectedMonth}
+                              searchable={false}
+                              options={[
+                                { label: 'January', value: '0' },
+                                { label: 'February', value: '1' },
+                                { label: 'March', value: '2' },
+                                { label: 'April', value: '3' },
+                                { label: 'May', value: '4' },
+                                { label: 'June', value: '5' },
+                                { label: 'July', value: '6' },
+                                { label: 'August', value: '7' },
+                                { label: 'September', value: '8' },
+                                { label: 'October', value: '9' },
+                                { label: 'November', value: '10' },
+                                { label: 'December', value: '11' }
+                              ]}
+                              onChange={setSelectedMonth}
+                            />
+                          </div>
+                          <div className="space-y-1">
+                            <p className="text-[9px] font-black text-text-muted uppercase tracking-widest ml-1">Year</p>
+                            <Select
+                              value={selectedYear}
+                              searchable={false}
+                              options={Array.from({ length: 5 }, (_, i) => {
+                                const y = (new Date().getFullYear() - 2 + i).toString();
+                                return { label: y, value: y };
+                              })}
+                              onChange={setSelectedYear}
+                            />
+                          </div>
+                        </div>
+                      )}
+
+                      {dateFilterType === 'year' && (
+                        <div className="space-y-1 animate-in fade-in duration-200">
+                          <p className="text-[9px] font-black text-text-muted uppercase tracking-widest ml-1">Select Year</p>
+                          <Select
+                            value={selectedYear}
+                            searchable={false}
+                            options={Array.from({ length: 5 }, (_, i) => {
+                              const y = (new Date().getFullYear() - 2 + i).toString();
+                              return { label: y, value: y };
+                            })}
+                            onChange={setSelectedYear}
+                          />
+                        </div>
+                      )}
+
+                      {dateFilterType === 'range' && (
+                        <div className="space-y-2 animate-in fade-in duration-200">
+                          <div className="space-y-1">
+                            <p className="text-[9px] font-black text-text-muted uppercase tracking-widest ml-1">Start Date</p>
+                            <DatePicker
+                              value={selectedRangeStart}
+                              onChange={setSelectedRangeStart}
+                              placeholder="From Date"
+                              className="w-full"
+                            />
+                          </div>
+                          <div className="space-y-1">
+                            <p className="text-[9px] font-black text-text-muted uppercase tracking-widest ml-1">End Date</p>
+                            <DatePicker
+                              value={selectedRangeEnd}
+                              onChange={setSelectedRangeEnd}
+                              placeholder="To Date"
+                              className="w-full"
+                            />
+                          </div>
+                        </div>
+                      )}
+
+                      <div className="flex gap-2 pt-2 border-t border-white/5">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setDateFilterType('all');
+                            setShowDateFilterPopover(false);
+                          }}
+                          className="flex-1 py-1.5 text-[9px] font-black uppercase tracking-wider rounded-xl bg-white/5 text-text-muted hover:bg-white/10 hover:text-white transition-all text-center"
+                        >
+                          Reset
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setShowDateFilterPopover(false)}
+                          className="flex-1 py-1.5 text-[9px] font-black uppercase tracking-wider rounded-xl bg-accent text-black hover:bg-accent-hover transition-all text-center"
+                        >
+                          Apply
+                        </button>
+                      </div>
+                    </div>
+                  </>
+                )}
+              </div>
+
+              {/* Status Filter Button */}
+              <div className="relative" id="mobile-status-filter-container">
+                <button
+                  type="button"
+                  onClick={() => { setShowStatusFilterPopover(!showStatusFilterPopover); setShowDateFilterPopover(false); }}
+                  className={`flex items-center gap-1.5 px-3 py-2 bg-white/[0.02] border border-white/5 hover:bg-white/10 text-white rounded-xl text-[9px] font-black uppercase tracking-wider transition-all cursor-pointer whitespace-nowrap ${statusFilter !== 'all' ? 'border-accent/40 bg-accent/5 text-accent' : ''}`}
+                >
+                  <Filter size={12} className={statusFilter !== 'all' ? 'text-accent' : 'text-text-muted'} />
+                  <span>{getStatusFilterLabel()}</span>
+                  <ChevronDown size={10} className="text-text-muted opacity-60" />
+                </button>
+                {showStatusFilterPopover && (
+                  <>
+                    <div className="fixed inset-0 z-[110]" onClick={() => setShowStatusFilterPopover(false)} />
+                    <div className="absolute left-0 mt-2 z-[120] bg-gradient-to-br from-[#1a1a1a] to-[#0a0a0a] border border-white/10 rounded-2xl p-2.5 shadow-[0_20px_50px_rgba(0,0,0,0.5)] backdrop-blur-3xl w-48 space-y-1">
+                      <p className="text-[9px] font-black text-text-muted uppercase tracking-[0.2em] px-2 pb-1">Filter by Status</p>
+                      {STATUS_FILTER_OPTIONS.map(opt => (
+                        <button
+                          key={opt.value}
+                          type="button"
+                          onClick={() => {
+                            setStatusFilter(opt.value);
+                            setFilter(opt.value === 'due_soon' ? 'expiring' : opt.value);
+                            setShowStatusFilterPopover(false);
+                          }}
+                          className={`w-full flex items-center justify-between px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all text-left ${statusFilter === opt.value
+                            ? 'bg-accent/10 text-accent border border-accent/20'
+                            : 'text-text-secondary hover:bg-white/5 hover:text-white'
+                            }`}
+                        >
+                          <span>{opt.label}</span>
+                          {statusFilter === opt.value && <Check size={10} className="text-accent" />}
+                        </button>
+                      ))}
+                    </div>
+                  </>
+                )}
+              </div>
+            </div>
+          </div>
+
           {/* Stats Bar (Compact) */}
           {stats && (
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-5">
@@ -1174,7 +1439,8 @@ export default function MembersPage() {
           <EmptyState icon={<Users size={48} className="text-text-muted opacity-50" />} title="No members found" description="Add your first member to get started" />
         ) : (
           <>
-            <div className="max-h-[292px] overflow-y-auto relative rounded-2xl border border-white/5">
+            {/* Desktop and Laptop View: Table Layout */}
+            <div className="hidden md:block max-h-[292px] overflow-y-auto relative rounded-2xl border border-white/5">
               <table className="w-full text-left border-collapse">
                 <thead className="sticky top-0 bg-[#0a0a0a] z-10 border-b border-white/5 shadow-md">
                   <tr className="bg-white/[0.02]">
@@ -1318,6 +1584,211 @@ export default function MembersPage() {
                 </tbody>
               </table>
             </div>
+
+            {/* Mobile View: Card List Layout (Redesigned to match layout image) */}
+            <div className="block md:hidden space-y-4 max-h-[500px] overflow-y-auto pr-1">
+              {filteredMembers.map((m, idx) => {
+                const toggleOn = m.status === 'active';
+                const isGray = !toggleOn;
+
+                return (
+                  <div
+                    key={m._id}
+                    onClick={() => setShowDetail(m)}
+                    className={`card !p-0 flex flex-col transition-all cursor-pointer border border-white/5 bg-white/[0.01] hover:bg-white/[0.02] ${
+                      isGray ? 'opacity-65 grayscale-[0.3]' : ''
+                    }`}
+                  >
+                    {/* Card Header */}
+                    <div className="flex items-center justify-between px-4 py-3 border-b border-white/5 bg-white/[0.005]">
+                      <span className="text-[10px] font-black text-text-muted uppercase tracking-widest">
+                        #MB{(idx + 1).toString().padStart(4, '0')}
+                      </span>
+                      {/* Action Menu */}
+                      <div onClick={(e) => e.stopPropagation()}>
+                        <button
+                          onClick={(e) => {
+                            const rect = e.currentTarget.getBoundingClientRect();
+                            const showAbove = rect.bottom + 260 > window.innerHeight;
+                            const y = showAbove ? rect.top - 260 : rect.bottom + 8;
+                            const x = rect.right - 192; // 192px is w-48
+
+                            if (openMenuId === m._id) {
+                              setOpenMenuId(null);
+                              setActiveMenu(null);
+                            } else {
+                              setOpenMenuId(m._id);
+                              setActiveMenu({
+                                id: m._id,
+                                x,
+                                y,
+                                data: m
+                              });
+                            }
+                          }}
+                          className={`w-7 h-7 rounded-full flex items-center justify-center transition-all ${
+                            openMenuId === m._id
+                              ? 'bg-accent text-black shadow-lg shadow-accent/20'
+                              : 'bg-white/5 text-text-muted hover:bg-white/10 hover:text-white'
+                          }`}
+                        >
+                          <MoreVertical size={14} />
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Card Content Row */}
+                    <div className="flex items-center justify-between px-4 py-4 gap-3">
+                      <div className="flex items-center gap-3">
+                        {/* Avatar */}
+                        {m.photo ? (
+                          <img
+                            src={m.photo}
+                            alt={m.name}
+                            className="w-11 h-11 rounded-full object-cover border border-white/10 shadow-lg"
+                          />
+                        ) : (
+                          <div
+                            className={`w-11 h-11 rounded-full flex items-center justify-center font-black text-sm shadow-lg ${
+                              m.gender === 'female'
+                                ? 'bg-gradient-to-br from-pink-500/20 to-pink-500/5 text-pink-200 border border-pink-500/10'
+                                : m.gender === 'male'
+                                ? 'bg-gradient-to-br from-blue-500/20 to-blue-500/5 text-blue-200 border border-blue-500/10'
+                                : 'bg-gradient-to-br from-white/10 to-white/5 text-white border-white/5'
+                            }`}
+                          >
+                            {m.name[0]}
+                          </div>
+                        )}
+
+                        {/* Name & Phone */}
+                        <div>
+                          <div className="flex items-center gap-1.5">
+                            <span
+                              className={`text-[13px] font-black tracking-tight ${
+                                m.gender === 'female'
+                                  ? 'text-pink-200'
+                                  : m.gender === 'male'
+                                  ? 'text-blue-200'
+                                  : 'text-white'
+                              }`}
+                            >
+                              {m.name}
+                            </span>
+                            {(() => {
+                              const expiry = new Date(m.planExpiry);
+                              const isExpired = expiry < new Date();
+                              const diffDays = Math.abs(Math.ceil((expiry - new Date()) / (1000 * 60 * 60 * 24)));
+                              const isWarning = !isExpired && diffDays <= 3;
+                              return (isExpired || isWarning) && (
+                                <AlertCircle size={12} className={isExpired ? 'text-danger' : 'text-warning'} />
+                              );
+                            })()}
+                          </div>
+                          <span className="text-[10px] font-bold text-text-secondary block mt-0.5">{m.phone}</span>
+                        </div>
+                      </div>
+
+                      {/* Status Badge with Dot */}
+                      <div>
+                        {m.status === 'active' ? (
+                          <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-success/10 text-success border border-success/20 text-[9px] font-black uppercase tracking-wider">
+                            <span className="w-1.5 h-1.5 rounded-full bg-success animate-pulse" />
+                            <span>Active</span>
+                          </div>
+                        ) : (
+                          <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-white/5 text-text-muted border border-white/5 text-[9px] font-black uppercase tracking-wider">
+                            <span className="w-1.5 h-1.5 rounded-full bg-text-muted" />
+                            <span>Inactive</span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Card Detail List (Table/Grid styling matching screenshot) */}
+                    <div className="px-4 pb-4.5 space-y-2 text-[11px] border-t border-white/5 pt-3.5">
+                      <div className="flex justify-between items-center">
+                        <span className="text-text-muted font-bold">Created on</span>
+                        <span className="text-white font-extrabold">
+                          {m.joinDate
+                            ? new Date(m.joinDate).toLocaleDateString('en-GB', {
+                                day: '2-digit',
+                                month: '2-digit',
+                                year: 'numeric'
+                              })
+                            : 'N/A'}
+                        </span>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-text-muted font-bold">Plan expiry</span>
+                        <span className="text-white font-extrabold">
+                          {m.planExpiry
+                            ? new Date(m.planExpiry).toLocaleDateString('en-GB', {
+                                day: '2-digit',
+                                month: '2-digit',
+                                year: 'numeric'
+                              })
+                            : 'N/A'}
+                        </span>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-text-muted font-bold">Coach</span>
+                        <span
+                          className={`font-black uppercase tracking-tight text-[10px] ${
+                            m.assignedTrainer
+                              ? m.assignedTrainer.gender === 'female'
+                                ? 'text-pink-300'
+                                : m.assignedTrainer.gender === 'male'
+                                ? 'text-blue-300'
+                                : 'text-accent'
+                              : 'text-text-muted italic normal-case'
+                          }`}
+                        >
+                          {m.assignedTrainer ? m.assignedTrainer.name : 'unassigned'}
+                        </span>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-text-muted font-bold">Plan / Amount</span>
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-zinc-200 font-extrabold">
+                            {(() => {
+                              const hasPt = m.assignedTrainer || (m.plan || '').toLowerCase().includes('pt');
+                              const basePlan = m.plan.replace(/\s*\+\s*pt/gi, '');
+                              return (
+                                <>
+                                  {basePlan}
+                                  {hasPt && <span className="text-accent font-black ml-1">+ PT</span>}
+                                </>
+                              );
+                            })()}
+                          </span>
+                          <span className="text-text-muted font-bold">|</span>
+                          <span className="text-white font-black">₹{Number(m.planAmount).toLocaleString()}</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Mobile View: Floating Action Button (FAB) matching user screenshot (uses system accent color) */}
+            <button
+              type="button"
+              onClick={() => {
+                if (user?.subscriptionPlan && stats && stats.totalMembers >= user.subscriptionPlan.maxClients) {
+                  setLimitReachedState({
+                    title: 'Plan Limit Reached',
+                    message: `You have reached your plan limit of ${user.subscriptionPlan.maxClients} clients. Please upgrade your software subscription to add more clients.`
+                  });
+                } else {
+                  setShowAdd(true);
+                }
+              }}
+              className="md:hidden fixed bottom-6 right-6 w-14 h-14 rounded-full bg-accent hover:bg-accent-hover text-black flex items-center justify-center shadow-[0_8px_30px_rgba(0,0,0,0.5)] border border-white/10 z-[50] transition-all active:scale-95 cursor-pointer"
+            >
+              <UserPlus size={22} />
+            </button>
           </>
         )}
       </div>
@@ -1795,7 +2266,8 @@ export default function MembersPage() {
                     <h4 className="text-[12px] font-black text-white uppercase tracking-wider">Past Receipts ({paymentHistory.length})</h4>
 
                     <div className="bg-white/[0.01] border border-white/5 rounded-2xl overflow-hidden max-h-[280px] overflow-y-auto no-scrollbar">
-                      <table className="w-full text-left border-collapse">
+                      {/* Desktop Table View */}
+                      <table className="hidden md:table w-full text-left border-collapse">
                         <thead>
                           <tr className="bg-white/[0.02] border-b border-white/5">
                             <th className="px-4 py-3 text-[11px] font-black text-text-muted uppercase tracking-wider">Plan</th>
@@ -1854,6 +2326,57 @@ export default function MembersPage() {
                           )}
                         </tbody>
                       </table>
+
+                      {/* Mobile List View */}
+                      <div className="block md:hidden divide-y divide-white/5">
+                        {paymentHistory.length === 0 ? (
+                          <div className="text-center py-8 text-text-muted font-bold text-[11px] uppercase tracking-widest opacity-60">
+                            No receipts found.
+                          </div>
+                        ) : (
+                          paymentHistory.map((p) => {
+                            const isPtPayment = p.isPtPayment || (p.notes && (p.notes.toLowerCase().includes('pt') || p.notes.toLowerCase().includes('personal')));
+                            const badgeText = (p.notes || '').toLowerCase().includes('upgrade') ? 'PT' : 'Training + PT';
+                            const shouldDisplayNote = p.notes && !p.notes.toLowerCase().startsWith('initial membership payment');
+                            const isCancelled = p.status === 'cancelled';
+                            return (
+                              <div key={p._id || p.createdAt} className={`p-4 flex flex-col gap-2 ${isCancelled ? 'opacity-40' : ''}`}>
+                                <div className="flex items-center justify-between">
+                                  <div className="flex flex-col gap-1">
+                                    <div className="flex items-center gap-1.5 flex-wrap">
+                                      <span className={`text-[12px] font-black uppercase tracking-wider ${isCancelled ? 'line-through text-text-muted' : 'text-white'}`}>{p.plan}</span>
+                                      {isPtPayment && (
+                                        <span className={`text-[8px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded-md ${isCancelled ? 'text-danger bg-danger/10 border border-danger/20 line-through' : 'text-accent bg-accent/15 border border-accent/30'}`}>
+                                          {badgeText}
+                                        </span>
+                                      )}
+                                      {isCancelled && (
+                                        <span className="text-[8px] font-black uppercase tracking-wider text-danger bg-danger/15 border border-danger/30 px-1.5 py-0.5 rounded-md">
+                                          CANCELLED
+                                        </span>
+                                      )}
+                                    </div>
+                                    {shouldDisplayNote && (
+                                      <span className="text-[9px] text-text-muted font-medium italic max-w-[200px] truncate" title={p.notes}>
+                                        {p.notes}
+                                      </span>
+                                    )}
+                                  </div>
+                                  <span className={`text-[12px] font-black ${isCancelled ? 'text-text-muted line-through' : 'text-success'}`}>₹{p.amount?.toLocaleString()}</span>
+                                </div>
+                                <div className="flex items-center justify-between text-[11px] pt-1">
+                                  <div className="text-text-muted">
+                                    Paid On: <span className={`font-bold ${isCancelled ? 'line-through' : 'text-text-secondary'}`}>{new Date(p.paymentDate || p.createdAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })}</span>
+                                  </div>
+                                  <div className="text-text-muted">
+                                    Expiry: <span className={`font-black ${isCancelled ? 'line-through' : 'text-white'}`}>{new Date(p.newExpiry).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}</span>
+                                  </div>
+                                </div>
+                              </div>
+                            );
+                          })
+                        )}
+                      </div>
                     </div>
                   </div>
                 )}

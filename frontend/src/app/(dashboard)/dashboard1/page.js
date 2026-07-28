@@ -1,5 +1,6 @@
 'use client';
 import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { analyticsApi } from '@/lib/api';
 import { 
   TrendingUp, TrendingDown, Clock, Activity, Zap, 
@@ -8,6 +9,14 @@ import {
 } from 'lucide-react';
 
 export default function Dashboard1() {
+  const router = useRouter();
+
+  useEffect(() => {
+    if (typeof window !== 'undefined' && window.innerWidth < 768) {
+      router.replace('/dashboard');
+    }
+  }, [router]);
+
   const [filter, setFilter] = useState('month');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
