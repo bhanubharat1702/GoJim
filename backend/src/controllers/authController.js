@@ -122,7 +122,7 @@ exports.register = async (req, res) => {
 exports.login = async (req, res) => {
   try {
     const rawIdentifier = (req.body.email || req.body.phone || req.body.identifier || '').toString().trim();
-    const { password, force } = req.body;
+    const { password, force, confirmLogin } = req.body;
 
     if (!rawIdentifier || !password) {
       return res.status(400).json({ success: false, message: 'Please provide email or phone number and password' });
@@ -247,7 +247,7 @@ exports.login = async (req, res) => {
     const twelveHoursMs = 12 * 60 * 60 * 1000;
     const isStaleSession = user.lastActivity && (new Date() - new Date(user.lastActivity) > twelveHoursMs);
 
-    if (user.isLoggedIn && user.activeSessionId && !force && !isStaleSession) {
+    if (user.isLoggedIn && user.activeSessionId && !force && !confirmLogin && !isStaleSession) {
       return res.status(200).json({
         success: false,
         requiresConfirmation: true,
@@ -262,7 +262,12 @@ exports.login = async (req, res) => {
     user.lastActivity = new Date();
     user.loginCount = (user.loginCount || 0) + 1;
     user.isLoggedIn = true;
-    user.activeSessionId = sessionId;
+    
+    if (force) {
+      user.activeSessionId = sessionId;
+    } else {
+      user.activeSessionId = user.activeSessionId ? `${user.activeSessionId},${sessionId}` : sessionId;
+    }
     await user.save();
 
     const AuditLog = require('../models/AuditLog');
@@ -966,8 +971,16 @@ exports.selectSubscriptionPlan = async (req, res) => {
 exports.logout = async (req, res) => {
   try {
     if (req.user) {
-      req.user.isLoggedIn = false;
-      req.user.activeSessionId = '';
+      if (req.sessionId && req.user.activeSessionId) {
+        const activeSessions = req.user.activeSessionId.split(',').filter(id => id && id !== req.sessionId);
+        req.user.activeSessionId = activeSessions.join(',');
+        if (activeSessions.length === 0) {
+          req.user.isLoggedIn = false;
+        }
+      } else {
+        req.user.isLoggedIn = false;
+        req.user.activeSessionId = '';
+      }
       await req.user.save();
     }
     const AuditLog = require('../models/AuditLog');
@@ -1246,7 +1259,7 @@ exports.forgotPassword = async (req, res) => {
 
     const user = await User.findOne({ email });
     if (!user) {
-      return res.status(404).json({ success: false, message: 'There is no user with that email' });
+      return res.status(404).json({ success: false, message: 'mail is not registered with us' });
     }
 
     // Generate reset token
@@ -1259,22 +1272,22 @@ exports.forgotPassword = async (req, res) => {
       .update(resetToken)
       .digest('hex');
 
-    // Set expire (10 minutes)
-    user.resetPasswordExpire = Date.now() + 10 * 60 * 1000;
+    // Set expire (5 minutes)
+    user.resetPasswordExpire = Date.now() + 5 * 60 * 1000;
 
     await user.save();
 
     // Determine the frontend origin dynamically
-    const origin = req.headers.origin || req.headers.referer || 'http://localhost:3000';
+    const origin = process.env.FRONTEND_URL || req.headers.origin || req.headers.referer || 'https://go-jim-five.vercel.app';
     const frontendUrl = origin.endsWith('/') ? origin.slice(0, -1) : origin;
     const finalResetUrl = `${frontendUrl}/login?step=reset&token=${resetToken}`;
 
-    const message = `You are receiving this email because you (or someone else) has requested the reset of a password. Please make a PUT request to:\n\n${finalResetUrl}\n\nThis link will expire in 10 minutes.`;
+    const message = `You are receiving this email because you (or someone else) has requested the reset of a password. Please make a PUT request to:\n\n${finalResetUrl}\n\nThis link will expire in 5 minutes.`;
     const html = `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: auto; padding: 20px; border: 1px solid #eee; border-radius: 10px;">
         <h2 style="color: #333;">Password Reset Request</h2>
         <p>You requested a password reset for your gym management account.</p>
-        <p>Please click the button below to reset your password. This link is valid for 10 minutes.</p>
+        <p>Please click the button below to reset your password. This link is valid for 5 minutes.</p>
         <div style="text-align: center; margin: 30px 0;">
           <a href="${finalResetUrl}" style="background-color: #fca311; color: black; padding: 12px 24px; text-decoration: none; border-radius: 5px; font-weight: bold;">Reset Password</a>
         </div>

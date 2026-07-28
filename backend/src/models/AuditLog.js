@@ -29,4 +29,6 @@ const AuditLogSchema = new mongoose.Schema({
   timestamps: { createdAt: 'date', updatedAt: false } 
 });
 
+AuditLogSchema.index({ gymOwner: 1, date: -1 });
+
 module.exports = mongoose.model('AuditLog', AuditLogSchema);

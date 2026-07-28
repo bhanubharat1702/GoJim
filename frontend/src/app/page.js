@@ -117,27 +117,34 @@ export default function LandingPage() {
   useEffect(() => {
     if (!isMobile) return;
 
+    let ticking = false;
     const handleScroll = () => {
-      if (containerRef.current) {
-        const rect = containerRef.current.getBoundingClientRect();
-        const windowHeight = window.innerHeight;
-        const totalScrollable = rect.height - windowHeight;
-        if (totalScrollable > 0) {
-          const scrolled = -rect.top;
-          const progress = Math.max(0, Math.min(1, scrolled / totalScrollable));
-          progressVal.set(progress);
-        }
-      }
+      if (!ticking) {
+        window.requestAnimationFrame(() => {
+          if (containerRef.current) {
+            const rect = containerRef.current.getBoundingClientRect();
+            const windowHeight = window.innerHeight;
+            const totalScrollable = rect.height - windowHeight;
+            if (totalScrollable > 0) {
+              const scrolled = -rect.top;
+              const progress = Math.max(0, Math.min(1, scrolled / totalScrollable));
+              progressVal.set(progress);
+            }
+          }
 
-      if (containerRef2.current) {
-        const rect = containerRef2.current.getBoundingClientRect();
-        const windowHeight = window.innerHeight;
-        const totalScrollable = rect.height - windowHeight;
-        if (totalScrollable > 0) {
-          const scrolled = -rect.top;
-          const progress = Math.max(0, Math.min(1, scrolled / totalScrollable));
-          progressVal2.set(progress);
-        }
+          if (containerRef2.current) {
+            const rect = containerRef2.current.getBoundingClientRect();
+            const windowHeight = window.innerHeight;
+            const totalScrollable = rect.height - windowHeight;
+            if (totalScrollable > 0) {
+              const scrolled = -rect.top;
+              const progress = Math.max(0, Math.min(1, scrolled / totalScrollable));
+              progressVal2.set(progress);
+            }
+          }
+          ticking = false;
+        });
+        ticking = true;
       }
     };
 
@@ -288,23 +295,31 @@ export default function LandingPage() {
 
   useEffect(() => {
     let lastScrollY = window.pageYOffset;
+    let ticking = false;
     const handleScroll = () => {
-      // Only apply scroll shrinking on mobile viewports
-      if (window.innerWidth >= 768) {
-        setIsNavbarShrunk(false);
-        return;
+      if (!ticking) {
+        window.requestAnimationFrame(() => {
+          // Only apply scroll shrinking on mobile viewports
+          if (window.innerWidth >= 768) {
+            setIsNavbarShrunk(false);
+            ticking = false;
+            return;
+          }
+          const currentScrollY = window.pageYOffset;
+          if (currentScrollY > 50) {
+            if (currentScrollY > lastScrollY) {
+              setIsNavbarShrunk(true);
+            } else {
+              setIsNavbarShrunk(false);
+            }
+          } else {
+            setIsNavbarShrunk(false);
+          }
+          lastScrollY = currentScrollY;
+          ticking = false;
+        });
+        ticking = true;
       }
-      const currentScrollY = window.pageYOffset;
-      if (currentScrollY > 50) {
-        if (currentScrollY > lastScrollY) {
-          setIsNavbarShrunk(true);
-        } else {
-          setIsNavbarShrunk(false);
-        }
-      } else {
-        setIsNavbarShrunk(false);
-      }
-      lastScrollY = currentScrollY;
     };
     window.addEventListener('scroll', handleScroll, { passive: true });
     return () => window.removeEventListener('scroll', handleScroll);
@@ -462,11 +477,11 @@ export default function LandingPage() {
               className="flex flex-col justify-center items-center transition-all duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] relative w-6 h-5 gap-[5px]"
               style={{ transform: isNavbarShrunk ? 'scale(0.83)' : 'scale(1)' }}
             >
-              <div className={`w-5 h-[2px] bg-current rounded transition-all duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] transform origin-center ${isMobileMenuOpen ? 'rotate-45 translate-y-[7px]' : ''
+              <div className={`w-5 h-[2px] bg-white rounded transition-all duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] transform origin-center ${isMobileMenuOpen ? 'rotate-45 translate-y-[7px]' : ''
                 }`} />
-              <div className={`w-5 h-[2px] bg-current rounded transition-all duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] ${isMobileMenuOpen ? 'opacity-0 scale-0' : ''
+              <div className={`w-5 h-[2px] bg-white rounded transition-all duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] ${isMobileMenuOpen ? 'opacity-0 scale-0' : ''
                 }`} />
-              <div className={`w-5 h-[2px] bg-current rounded transition-all duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] transform origin-center ${isMobileMenuOpen ? '-rotate-45 -translate-y-[7px]' : ''
+              <div className={`w-5 h-[2px] bg-white rounded transition-all duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] transform origin-center ${isMobileMenuOpen ? '-rotate-45 -translate-y-[7px]' : ''
                 }`} />
             </div>
           </button>
@@ -710,7 +725,7 @@ export default function LandingPage() {
         /* Mobile Sticky Scroll Slider Interaction */
         <section ref={containerRef} id="features" className="relative h-[300vh] w-full bg-bg-primary">
           <div className="sticky top-0 h-screen w-full flex flex-col items-center justify-center overflow-hidden pt-28 pb-12 px-4 z-10">
-            
+
             {/* Sticky Pinned Header */}
             <div className="text-center mb-8 max-w-2xl">
               <h2 className="text-4xl md:text-5xl font-extrabold tracking-tight mb-4">
@@ -849,7 +864,7 @@ export default function LandingPage() {
         /* Mobile Sticky Scroll Slider Interaction */
         <section ref={containerRef2} className="relative h-[300vh] w-full bg-bg-primary">
           <div className="sticky top-0 h-screen w-full flex flex-col items-center justify-center overflow-hidden pt-28 pb-12 px-4 z-10">
-            
+
             {/* Sticky Pinned Header */}
             <div className="text-center mb-8 max-w-2xl">
               <h2 className="text-4xl md:text-5xl font-extrabold tracking-tight mb-4">
@@ -992,22 +1007,22 @@ export default function LandingPage() {
             {/* Metric 1 */}
             <div className="group bg-[#0c0c0c] border border-[#1a1a1a] rounded-xl p-6 relative flex flex-col justify-between min-h-[220px] transition-all hover:border-[#2a2a2a] hover:-translate-y-1">
               <div className="flex justify-between items-start mb-5">
-                <div>
-                  <h3 className="text-lg font-bold text-white mb-1 tracking-tight">WhatsApp Engagement</h3>
-                  <p className="text-accent text-[13px] font-extrabold">98% Open Rate Alerts</p>
+                <div className="text-center md:text-left w-full">
+                  <p className="text-accent text-[13px] font-extrabold mb-1">98% Open Rate Alerts</p>
+                  <h3 className="text-[20px] font-bold text-white tracking-tight">WhatsApp Engagement</h3>
                 </div>
 
               </div>
               <p className="text-[#888888] text-[13px] leading-relaxed mb-5">
-                Replace ignored emails with direct WhatsApp messages. Members receive renewal alerts, welcome pings, and comeback nudges right on their phones.
+                Replace ignored emails with direct WhatsApp messages. Members receive <span className="text-white">renewal alerts</span>, <span className="text-white">welcome pings</span>, and <span className="text-white">comeback nudges</span> right on their phones.
               </p>
               <div className="flex gap-4 border-t border-white/5 pt-4">
                 <div>
-                  <div className="text-xl font-bold text-white">4.8x</div>
+                  <div className="text-[20px] font-bold text-accent">4.8x</div>
                   <div className="text-[#888888] text-[10px] font-medium">Higher Conversion</div>
                 </div>
                 <div>
-                  <div className="text-xl font-bold text-white">Zero</div>
+                  <div className="text-[20px] font-bold text-accent">Zero</div>
                   <div className="text-[#888888] text-[10px] font-medium">Email Spam</div>
                 </div>
               </div>
@@ -1016,22 +1031,22 @@ export default function LandingPage() {
             {/* Metric 2 */}
             <div className="group bg-[#0c0c0c] border border-[#1a1a1a] rounded-xl p-6 relative flex flex-col justify-between min-h-[220px] transition-all hover:border-[#2a2a2a] hover:-translate-y-1">
               <div className="flex justify-between items-start mb-5">
-                <div>
-                  <h3 className="text-lg font-bold text-white mb-1 tracking-tight">Billing Leakage</h3>
-                  <p className="text-accent text-[13px] font-extrabold">Auto Lockout Control</p>
+                <div className="text-center md:text-left w-full">
+                  <p className="text-accent text-[13px] font-extrabold mb-1">Auto Lockout Control</p>
+                  <h3 className="text-[20px] font-bold text-white tracking-tight">Billing Leakage</h3>
                 </div>
 
               </div>
               <p className="text-[#888888] text-[13px] leading-relaxed mb-5">
-                Once a client's plan expires, the check-in system restricts gym access automatically. Stop letting unpaid training sessions drain your margins.
+                Once a client's plan expires, the check-in system <span className="text-white">restricts gym</span> access <span className="text-white">automatically</span>. Stop letting unpaid training sessions drain your margins.
               </p>
               <div className="flex gap-4 border-t border-white/5 pt-4">
                 <div>
-                  <div className="text-xl font-bold text-white">100%</div>
+                  <div className="text-[20px] font-bold text-accent">100%</div>
                   <div className="text-[#888888] text-[10px] font-medium">Revenue Capture</div>
                 </div>
                 <div>
-                  <div className="text-xl font-bold text-white">Zero</div>
+                  <div className="text-[20px] font-bold text-accent">Zero</div>
                   <div className="text-[#888888] text-[10px] font-medium">Manual Audits</div>
                 </div>
               </div>
@@ -1040,22 +1055,22 @@ export default function LandingPage() {
             {/* Metric 3 */}
             <div className="group bg-[#0c0c0c] border border-[#1a1a1a] rounded-xl p-6 relative flex flex-col justify-between min-h-[220px] transition-all hover:border-[#2a2a2a] hover:-translate-y-1">
               <div className="flex justify-between items-start mb-5">
-                <div>
-                  <h3 className="text-lg font-bold text-white mb-1 tracking-tight">Trainer Compensation</h3>
-                  <p className="text-accent text-[13px] font-extrabold">Instant Payroll Splits</p>
+                <div className="text-center md:text-left w-full">
+                  <p className="text-accent text-[13px] font-extrabold mb-1">Instant Payroll Splits</p>
+                  <h3 className="text-[20px] font-bold text-white tracking-tight">Trainer Compensation</h3>
                 </div>
 
               </div>
               <p className="text-[#888888] text-[13px] leading-relaxed mb-5">
-                Define base salaries and PT commission percentages. Payout reports are calculated automatically based on trainer schedules and active member logs.
+                Define base salaries and PT commission percentages. Payout reports are <span className="text-white">calculated automatically</span> based on <span className="text-white">trainer schedules</span> and <span className="text-white">active member</span> logs.
               </p>
               <div className="flex gap-4 border-t border-white/5 pt-4">
                 <div>
-                  <div className="text-xl font-bold text-white">10x</div>
+                  <div className="text-[20px] font-bold text-accent">10x</div>
                   <div className="text-[#888888] text-[10px] font-medium">Faster Calculations</div>
                 </div>
                 <div>
-                  <div className="text-xl font-bold text-white">100%</div>
+                  <div className="text-[20px] font-bold text-accent">100%</div>
                   <div className="text-[#888888] text-[10px] font-medium">Transparency</div>
                 </div>
               </div>

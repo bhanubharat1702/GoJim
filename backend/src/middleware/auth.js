@@ -26,13 +26,20 @@ const protect = async (req, res, next) => {
       });
     }
 
+    if (decoded.sessionId) {
+      req.sessionId = decoded.sessionId;
+    }
+
     // Single active session enforcement: check if user logged in on another device
-    if (decoded.sessionId && req.user.activeSessionId && decoded.sessionId !== req.user.activeSessionId && !decoded.isImpersonated) {
-      return res.status(401).json({
-        success: false,
-        sessionExpired: true,
-        message: 'Your account was logged in on another device'
-      });
+    if (decoded.sessionId && req.user.activeSessionId && !decoded.isImpersonated) {
+      const activeSessions = req.user.activeSessionId.split(',');
+      if (!activeSessions.includes(decoded.sessionId)) {
+        return res.status(401).json({
+          success: false,
+          sessionExpired: true,
+          message: 'Your account was logged in on another device'
+        });
+      }
     }
 
     // Set gymOwnerId for multi-tenancy

@@ -1,8 +1,8 @@
 'use client';
 
-import { useRef, useState } from 'react';
+import { useRef, useState, useEffect } from 'react';
 import { Quote, Star, ChevronLeft, ChevronRight } from 'lucide-react';
-import { motion, useScroll, useTransform, useSpring } from 'framer-motion';
+import { motion, useScroll, useTransform, useSpring, useVelocity, useAnimationFrame, useMotionValue } from 'framer-motion';
 
 const row1 = [
   { name: 'Rajesh Sharma', role: 'Founder, Peak Performance Gym, Mumbai', text: "Pehle Excel sheet par saara record rakhna bahut mushkil tha. GoJim ke aane se members ke membership status aur alerts track karna bahut aasan ho gaya hai.", avatar: '🧔', bg: 'bg-accent', rating: '5.0' },
@@ -27,22 +27,61 @@ export default function Testimonials({ appName = 'goJim' }) {
   const [manualX1, setManualX1] = useState(0);
   const [manualX2, setManualX2] = useState(0);
   
-  // Card width (350px) + Gap (24px)
-  const shiftAmount = 374;
+  // Card width + Gap: 374px on desktop (350 + 24), 296px on mobile (280 + 16)
+  const [shiftAmount, setShiftAmount] = useState(374);
 
-  const { scrollYProgress } = useScroll({
-    target: containerRef,
-    offset: ["start end", "end start"]
+  useEffect(() => {
+    const handleResize = () => {
+      if (window.innerWidth < 768) {
+        setShiftAmount(296);
+      } else {
+        setShiftAmount(374);
+      }
+    };
+    handleResize();
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  const { scrollY } = useScroll();
+  const scrollVelocity = useVelocity(scrollY);
+  const smoothVelocity = useSpring(scrollVelocity, {
+    damping: 50,
+    stiffness: 400
   });
 
-  const smoothProgress = useSpring(scrollYProgress, {
-    stiffness: 80,
-    damping: 20,
-    restDelta: 0.001
+  const baseX1 = useMotionValue(0);
+  const baseX2 = useMotionValue(-25);
+
+  useAnimationFrame((time, delta) => {
+    // Reduced base speed for smoother/slower scroll (around 0.0005% of container per ms)
+    const baseSpeed = 0.0005 * delta;
+
+    // Retrieve scroll velocity (pixels/second)
+    const velocity = Math.abs(smoothVelocity.get());
+    
+    // Scale velocity to percentage increment (reduced modifier for smoother speed increase)
+    const velocityModifier = velocity * 0.000003 * delta;
+
+    const totalSpeed = baseSpeed + velocityModifier;
+
+    // Translate left (decrease x)
+    let newX1 = baseX1.get() - totalSpeed;
+    if (newX1 <= -25) {
+      newX1 = newX1 + 25; // wrap seamlessly at -25%
+    }
+    baseX1.set(newX1);
+
+    // Translate right (increase x)
+    let newX2 = baseX2.get() + totalSpeed;
+    if (newX2 >= 0) {
+      newX2 = newX2 - 25; // wrap seamlessly at 0%
+    }
+    baseX2.set(newX2);
   });
 
-  const x1 = useTransform(smoothProgress, [0, 1], [-500, -1500]);
-  const x2 = useTransform(smoothProgress, [0, 1], [-1500, -500]);
+  const x1 = useTransform(baseX1, v => `${v}%`);
+  const x2 = useTransform(baseX2, v => `${v}%`);
 
   return (
     <section ref={containerRef} className="py-24 w-full relative z-10 bg-bg-primary border-t border-white/5 overflow-hidden">
@@ -66,19 +105,19 @@ export default function Testimonials({ appName = 'goJim' }) {
 
         {/* Row 1 Container */}
         <div className="relative w-full group/row1">
-          {/* Arrow Buttons (Row 1) */}
-          <button onClick={() => setManualX1(p => p + shiftAmount)} className="absolute left-8 md:left-24 top-1/2 -translate-y-1/2 z-30 w-12 h-12 rounded-full bg-white/5 backdrop-blur-md border border-white/10 flex items-center justify-center text-white opacity-0 group-hover/row1:opacity-100 transition-all hover:bg-white/20 hover:scale-110">
-            <ChevronLeft size={24} />
+          {/* Arrow Buttons (Row 1) - Visible without hover on mobile, absolute edges */}
+          <button onClick={() => setManualX1(p => p + shiftAmount)} className="absolute left-2 md:left-24 top-1/2 -translate-y-1/2 z-30 w-8 h-8 md:w-12 md:h-12 rounded-full bg-white/10 md:bg-white/5 backdrop-blur-md border border-white/10 flex items-center justify-center text-white opacity-100 md:opacity-0 md:group-hover/row1:opacity-100 transition-all hover:bg-white/20 hover:scale-110">
+            <ChevronLeft className="w-4 h-4 md:w-6 md:h-6" />
           </button>
-          <button onClick={() => setManualX1(p => p - shiftAmount)} className="absolute right-8 md:right-24 top-1/2 -translate-y-1/2 z-30 w-12 h-12 rounded-full bg-white/5 backdrop-blur-md border border-white/10 flex items-center justify-center text-white opacity-0 group-hover/row1:opacity-100 transition-all hover:bg-white/20 hover:scale-110">
-            <ChevronRight size={24} />
+          <button onClick={() => setManualX1(p => p - shiftAmount)} className="absolute right-2 md:right-24 top-1/2 -translate-y-1/2 z-30 w-8 h-8 md:w-12 md:h-12 rounded-full bg-white/10 md:bg-white/5 backdrop-blur-md border border-white/10 flex items-center justify-center text-white opacity-100 md:opacity-0 md:group-hover/row1:opacity-100 transition-all hover:bg-white/20 hover:scale-110">
+            <ChevronRight className="w-4 h-4 md:w-6 md:h-6" />
           </button>
 
           <motion.div style={{ x: x1 }} className="flex w-max">
             <motion.div 
               animate={{ x: manualX1 }} 
               transition={{ type: "spring", stiffness: 200, damping: 25 }} 
-              className="flex gap-6 w-max"
+              className="flex gap-4 md:gap-6 w-max"
             >
               {[...row1, ...row1, ...row1, ...row1].map((t, i) => <Card key={`r1-${i}`} t={t} appName={appName} />)}
             </motion.div>
@@ -87,19 +126,19 @@ export default function Testimonials({ appName = 'goJim' }) {
 
         {/* Row 2 Container */}
         <div className="relative w-full group/row2">
-          {/* Arrow Buttons (Row 2) */}
-          <button onClick={() => setManualX2(p => p + shiftAmount)} className="absolute left-8 md:left-24 top-1/2 -translate-y-1/2 z-30 w-12 h-12 rounded-full bg-white/5 backdrop-blur-md border border-white/10 flex items-center justify-center text-white opacity-0 group-hover/row2:opacity-100 transition-all hover:bg-white/20 hover:scale-110">
-            <ChevronLeft size={24} />
+          {/* Arrow Buttons (Row 2) - Visible without hover on mobile, absolute edges */}
+          <button onClick={() => setManualX2(p => p + shiftAmount)} className="absolute left-2 md:left-24 top-1/2 -translate-y-1/2 z-30 w-8 h-8 md:w-12 md:h-12 rounded-full bg-white/10 md:bg-white/5 backdrop-blur-md border border-white/10 flex items-center justify-center text-white opacity-100 md:opacity-0 md:group-hover/row2:opacity-100 transition-all hover:bg-white/20 hover:scale-110">
+            <ChevronLeft className="w-4 h-4 md:w-6 md:h-6" />
           </button>
-          <button onClick={() => setManualX2(p => p - shiftAmount)} className="absolute right-8 md:right-24 top-1/2 -translate-y-1/2 z-30 w-12 h-12 rounded-full bg-white/5 backdrop-blur-md border border-white/10 flex items-center justify-center text-white opacity-0 group-hover/row2:opacity-100 transition-all hover:bg-white/20 hover:scale-110">
-            <ChevronRight size={24} />
+          <button onClick={() => setManualX2(p => p - shiftAmount)} className="absolute right-2 md:right-24 top-1/2 -translate-y-1/2 z-30 w-8 h-8 md:w-12 md:h-12 rounded-full bg-white/10 md:bg-white/5 backdrop-blur-md border border-white/10 flex items-center justify-center text-white opacity-100 md:opacity-0 md:group-hover/row2:opacity-100 transition-all hover:bg-white/20 hover:scale-110">
+            <ChevronRight className="w-4 h-4 md:w-6 md:h-6" />
           </button>
 
           <motion.div style={{ x: x2 }} className="flex w-max">
             <motion.div 
               animate={{ x: manualX2 }} 
               transition={{ type: "spring", stiffness: 200, damping: 25 }} 
-              className="flex gap-6 w-max"
+              className="flex gap-4 md:gap-6 w-max"
             >
               {[...row2, ...row2, ...row2, ...row2].map((t, i) => <Card key={`r2-${i}`} t={t} appName={appName} />)}
             </motion.div>
@@ -113,22 +152,22 @@ export default function Testimonials({ appName = 'goJim' }) {
 
 function Card({ t, appName }) {
   return (
-    <div className="w-[350px] shrink-0 bg-bg-card rounded-[20px] p-6 flex flex-col gap-4 transition-colors border border-white/5 shadow-xl hover:bg-bg-card-hover">
-      <Quote className="text-[#333] w-8 h-8 fill-current" />
-      <p className="text-[#cccccc] text-[14px] leading-relaxed flex-1">{t.text.replace(/GoJim/g, appName)}</p>
+    <div className="w-[280px] md:w-[350px] shrink-0 bg-bg-card rounded-[20px] p-5 md:p-6 flex flex-col gap-3 md:gap-4 transition-colors border border-white/5 shadow-xl hover:bg-bg-card-hover">
+      <Quote className="text-[#333] w-6 h-6 md:w-8 md:h-8 fill-current" />
+      <p className="text-[#cccccc] text-[13px] md:text-[14px] leading-relaxed flex-1">{t.text.replace(/GoJim/g, appName)}</p>
       <div className="flex items-center justify-between mt-2">
         <div className="flex items-center gap-3">
-          <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-xl ${t.bg}`}>
+          <div className={`w-8 h-8 md:w-10 md:h-10 rounded-xl flex items-center justify-center text-lg ${t.bg}`}>
             {t.avatar}
           </div>
           <div>
-            <h4 className="text-white font-bold text-[13px]">{t.name}</h4>
-            <p className="text-[#888888] text-[11px] font-medium">{t.role}</p>
+            <h4 className="text-white font-bold text-[12px] md:text-[13px]">{t.name}</h4>
+            <p className="text-[#888888] text-[10px] md:text-[11px] font-medium">{t.role}</p>
           </div>
         </div>
         <div className="flex items-center gap-1 text-[#eab308]">
-          <Star size={14} fill="currentColor" />
-          <span className="text-white text-[12px] font-bold">{t.rating}</span>
+          <Star className="w-3 h-3 md:w-3.5 md:h-3.5 text-[#eab308]" fill="currentColor" />
+          <span className="text-white text-[11px] md:text-[12px] font-bold">{t.rating}</span>
         </div>
       </div>
     </div>

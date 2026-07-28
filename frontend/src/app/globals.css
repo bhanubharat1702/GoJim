@@ -54,7 +54,11 @@
     scroll-behavior: smooth;
     -webkit-tap-highlight-color: transparent;
     scrollbar-gutter: stable;
-    /* Prevents layout shift when scrollbar disappears */
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+  html::-webkit-scrollbar {
+    display: none;
   }
 
   body {
@@ -65,6 +69,11 @@
     -moz-osx-font-smoothing: grayscale;
     overflow-x: hidden;
     transition: background-color 0.3s ease;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+  body::-webkit-scrollbar {
+    display: none;
   }
 
   nav {
@@ -551,4 +560,82 @@ input[type="number"] {
 .dropdown-options-list button[type="button"],
 select option {
   border-radius: 8px !important;
+}
+
+/* Disable native scrollbar on the viewport (html/body) to ensure only custom scrollbar is shown */
+html, body {
+  scrollbar-width: none !important;
+  -ms-overflow-style: none !important;
+}
+html::-webkit-scrollbar,
+body::-webkit-scrollbar {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+  background: transparent !important;
+}
+
+/* Custom Animations for Login and Signup Onboarding */
+@keyframes slideInFromBottom {
+  from {
+    transform: translateY(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+@keyframes slideInFromRight {
+  from {
+    transform: translateX(100px);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+@keyframes slideOutToBottom {
+  from {
+    transform: translateY(0);
+    opacity: 1;
+  }
+  to {
+    transform: translateY(100%);
+    opacity: 0;
+  }
+}
+
+@keyframes slideOutToRight {
+  from {
+    transform: translateX(0);
+    opacity: 1;
+  }
+  to {
+    transform: translateX(100px);
+    opacity: 0;
+  }
+}
+
+.animate-slide-up-custom {
+  opacity: 0;
+  animation: slideInFromBottom 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  animation-delay: 350ms;
+}
+
+.animate-slide-right-custom {
+  opacity: 0;
+  animation: slideInFromRight 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  animation-delay: 350ms;
+}
+
+.animate-slide-down-custom {
+  animation: slideOutToBottom 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.animate-slide-right-out-custom {
+  animation: slideOutToRight 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }

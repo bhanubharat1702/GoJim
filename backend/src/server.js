@@ -108,10 +108,10 @@ app.use(cors({
   credentials: true
 }));
 
-// Rate limiting
+// Rate limiting - adjusted for 2000 concurrent users at 10 req/sec per user
 const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 3000, // allow up to 3000 requests per 15 mins per IP
+  windowMs: 1 * 60 * 1000, // 1 minute window
+  max: 1200, // allow up to 1200 requests per minute (~20 req/sec) per IP to support NAT and high traffic spikes
   message: { success: false, message: 'Too many requests, please try again later' }
 });
 app.use('/api/', limiter);

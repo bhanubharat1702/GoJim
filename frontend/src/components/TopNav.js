@@ -3,6 +3,7 @@ import { usePathname, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { Search, Bell, Menu, User, LogOut, ChevronDown, ChevronUp, Settings, ChevronRight, AlertCircle, X, Users, CreditCard, RefreshCw, Gift, Coins, Dumbbell, Award } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useUI } from '@/context/UIContext';
 import { useState, useRef, useEffect } from 'react';
 import { membersApi, leadsApi, trainersApi, staffApi, alertsApi, superAdminApi } from '@/lib/api';
@@ -92,7 +93,7 @@ export default function TopNav({ broadcast, setBroadcast }) {
           setAppName(res.data.appName);
         }
       })
-      .catch(() => {});
+      .catch(() => { });
   }, []);
 
   const handleExitImpersonation = () => {
@@ -103,7 +104,7 @@ export default function TopNav({ broadcast, setBroadcast }) {
       localStorage.setItem('gojim_user', adminUser);
       localStorage.removeItem('gojim_admin_token');
       localStorage.removeItem('gojim_admin_user');
-      
+
       // Log audit
       fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001/api'}/super-admin/audit-logs/impersonation-exit`, {
         method: 'POST',
@@ -112,7 +113,7 @@ export default function TopNav({ broadcast, setBroadcast }) {
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({ ownerId: user?._id || user?.id })
-      }).catch(() => {});
+      }).catch(() => { });
 
       window.location.href = '/super-admin?tab=gyms';
     }
@@ -131,6 +132,17 @@ export default function TopNav({ broadcast, setBroadcast }) {
     setIsMobileMenuOpen(false);
     setOpenSubMenu(null);
   }, [pathname, searchParams]);
+
+  useEffect(() => {
+    if (isMobileMenuOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, [isMobileMenuOpen]);
 
   const openNotificationDrawer = () => {
     setShowNotificationDrawer(true);
@@ -165,16 +177,29 @@ export default function TopNav({ broadcast, setBroadcast }) {
   const subMenuRef = useRef(null);
   const searchInputRef = useRef(null);
   const notificationDropdownRef = useRef(null);
+  const mobileDropdownRef = useRef(null);
 
   const fetchNotifications = async () => {
     try {
-      await alertsApi.generate().catch(() => { });
+      // 1. Fetch existing notifications immediately for instant page render
       const res = await alertsApi.getAll('limit=50');
       if (res.success) {
         setNotifications(res.data);
         const unread = res.data.filter(n => !n.isRead).length;
         setUnreadCount(unread);
       }
+
+      // 2. Fire background alert generation asynchronously without blocking
+      alertsApi.generate()
+        .then(() => alertsApi.getAll('limit=50'))
+        .then(freshRes => {
+          if (freshRes && freshRes.success) {
+            setNotifications(freshRes.data);
+            const unread = freshRes.data.filter(n => !n.isRead).length;
+            setUnreadCount(unread);
+          }
+        })
+        .catch(() => { });
     } catch (err) {
       if (err.message === 'Failed to fetch') {
         console.warn("Background notification sync: Backend server offline or unreachable.");
@@ -494,7 +519,9 @@ export default function TopNav({ broadcast, setBroadcast }) {
 
   useEffect(() => {
     const handleClickOutside = (event) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+      const clickedOutsideDropdown = !dropdownRef.current || !dropdownRef.current.contains(event.target);
+      const clickedOutsideMobileDropdown = !mobileDropdownRef.current || !mobileDropdownRef.current.contains(event.target);
+      if (clickedOutsideDropdown && clickedOutsideMobileDropdown) {
         setIsDropdownOpen(false);
       }
       if (subMenuRef.current && !subMenuRef.current.contains(event.target)) {
@@ -540,7 +567,7 @@ export default function TopNav({ broadcast, setBroadcast }) {
       )}
 
       {isImpersonating && (
-        <div 
+        <div
           className="fixed top-0 left-0 right-0 h-[40px] bg-amber-500 text-black text-[11px] px-4 md:px-8 flex items-center justify-between z-[70] border-b border-amber-600 shadow-lg select-none"
           style={{ top: `${impersonatedByAdminBannerHeight}px` }}
         >
@@ -548,7 +575,7 @@ export default function TopNav({ broadcast, setBroadcast }) {
             <AlertCircle size={14} className="stroke-[2.5]" />
             <span>You are currently viewing this gym as Super Admin</span>
           </div>
-          <button 
+          <button
             onClick={handleExitImpersonation}
             className="bg-black hover:bg-black/80 text-white text-[9px] font-black uppercase tracking-wider px-3 py-1.5 rounded-xl transition-all shadow-md active:scale-95 cursor-pointer"
           >
@@ -558,12 +585,11 @@ export default function TopNav({ broadcast, setBroadcast }) {
       )}
 
       {broadcast && (
-        <div 
-          className={`fixed left-0 right-0 h-[40px] text-[11px] px-4 md:px-8 flex items-center justify-between z-[70] border-b shadow-lg select-none ${
-            broadcast.intensity === 'Danger' ? 'bg-red-600 text-white border-red-700' :
-            broadcast.intensity === 'Warning' ? 'bg-amber-500 text-black border-amber-600' :
-            'bg-blue-600 text-white border-blue-700'
-          }`}
+        <div
+          className={`fixed left-0 right-0 h-[40px] text-[11px] px-4 md:px-8 flex items-center justify-between z-[70] border-b shadow-lg select-none ${broadcast.intensity === 'Danger' ? 'bg-red-600 text-white border-red-700' :
+              broadcast.intensity === 'Warning' ? 'bg-amber-500 text-black border-amber-600' :
+                'bg-blue-600 text-white border-blue-700'
+            }`}
           style={{ top: `${impersonatedByAdminBannerHeight + impersonateBannerHeight}px` }}
         >
           <div className="flex items-center gap-2 font-black uppercase tracking-wider flex-1 overflow-hidden">
@@ -575,7 +601,7 @@ export default function TopNav({ broadcast, setBroadcast }) {
               </div>
             </div>
           </div>
-          <button 
+          <button
             onClick={() => {
               localStorage.setItem(`dismissed_broadcast_${broadcast._id}`, 'true');
               setBroadcast(null);
@@ -596,22 +622,117 @@ export default function TopNav({ broadcast, setBroadcast }) {
         </div>
       )}
 
-      <nav 
-        className="fixed left-0 right-0 z-[60] flex justify-center pt-3.5 pb-2 px-3 sm:px-4 lg:pt-5 lg:pb-2.5 lg:px-8 shadow-lg transition-all duration-300"
-        style={{ top: `${totalBannerHeight}px`, backgroundColor: '#000000' }}
+      <nav
+        className="fixed left-0 right-0 z-[10000] flex justify-center transition-all duration-300 bg-bg-card/30 backdrop-blur-xl border-b border-white/5 px-6 py-4 md:pt-3.5 md:pb-2 md:px-3 sm:md:px-4 lg:md:pt-5 lg:md:pb-2.5 lg:md:px-8 md:bg-black md:backdrop-blur-none md:border-b-0 md:shadow-lg"
+        style={{ top: `${totalBannerHeight}px` }}
       >
-        <div className="w-full max-w-7xl flex items-center justify-between">
-
-          {/* Logo & Mobile Menu Toggle */}
-          <div className="flex items-center gap-2.5">
+        {/* Mobile View Navbar (Avatar on left, Search/Notification/More on right) */}
+        <div className="w-full flex md:hidden items-center justify-between relative z-[10001]">
+          <div className={`relative transition-all duration-300 ${isMobileMenuOpen ? 'opacity-0 pointer-events-none' : 'opacity-100'}`} ref={mobileDropdownRef}>
             <button
-              onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-              className="md:hidden p-2 rounded-xl text-gray-300 hover:text-white bg-white/5 border border-white/10 active:scale-95 transition-all"
-              aria-label="Toggle navigation drawer"
+              onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+              className="flex items-center focus:outline-none cursor-pointer"
             >
-              {isMobileMenuOpen ? <X size={20} /> : <Menu size={20} />}
+              <div className="w-10 h-10 rounded-full bg-accent flex items-center justify-center text-black font-black text-sm overflow-hidden shadow-xl border border-white/10">
+                {user?.avatar ? (
+                  <img src={user.avatar} alt="Profile" className="w-full h-full object-cover" />
+                ) : (
+                  user?.name?.[0]?.toUpperCase() || 'A'
+                )}
+              </div>
             </button>
 
+            {isDropdownOpen && (
+              <div className="absolute top-full left-0 mt-3 w-64 bg-bg-card border border-white/10 rounded-2xl shadow-2xl overflow-hidden backdrop-blur-3xl p-1.5 z-[100]">
+                <div className="px-4 py-3.5 border-b border-white/5 mb-1.5">
+                  <p className="text-sm font-black text-text-primary uppercase tracking-tighter truncate">{user?.name || 'Admin User'}</p>
+                  <p className="text-[10px] text-text-muted font-bold uppercase tracking-widest mt-0.5 truncate">{user?.email || `admin@${appName.toLowerCase().replace(/\s+/g, '')}.com`}</p>
+                </div>
+
+                <button
+                  onClick={() => { setIsDropdownOpen(false); openSettings(); }}
+                  className="w-full flex items-center gap-3 px-4 py-3 text-[13px] font-bold text-text-secondary hover:text-text-primary hover:bg-white/5 rounded-xl border-none cursor-pointer"
+                >
+                  <Settings size={18} className="text-accent" /> Settings
+                </button>
+
+                {!isImpersonating && (
+                  <>
+                    <div className="h-px bg-white/5 my-1.5 mx-2" />
+
+                    <button
+                      onClick={() => { setIsDropdownOpen(false); logout(); }}
+                      className="w-full flex items-center gap-3 px-4 py-3 text-[13px] font-black text-red-500 hover:bg-red-500/10 rounded-xl border-none cursor-pointer"
+                    >
+                      <LogOut size={18} /> Logout
+                    </button>
+                  </>
+                )}
+              </div>
+            )}
+          </div>
+
+          <div className="flex items-center gap-2.5">
+            <div className={`flex items-center gap-2.5 transition-all duration-300 ${isMobileMenuOpen ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}>
+              <button
+                onClick={() => {
+                  setIsSearchOpen(!isSearchOpen);
+                  if (!isSearchOpen) setSearchQuery('');
+                }}
+                className={`w-10 h-10 rounded-full flex items-center justify-center transition-all focus:outline-none cursor-pointer ${
+                  isSearchOpen ? 'text-black bg-white' : 'text-gray-400 hover:text-white bg-white/5 border border-white/10'
+                }`}
+              >
+                <Search size={18} />
+              </button>
+
+              <div className="relative">
+                <button
+                  onClick={() => {
+                    openNotificationDrawer();
+                    setIsDropdownOpen(false);
+                  }}
+                  className={`w-10 h-10 rounded-full flex items-center justify-center transition-all focus:outline-none relative cursor-pointer ${
+                    showNotificationDrawer ? 'text-black bg-white' : 'text-gray-400 hover:text-white bg-white/5 border border-white/10'
+                  }`}
+                >
+                  <Bell size={18} />
+                  {unreadCount > 0 && (
+                    <span className="absolute -top-1 -right-1 px-1 py-0.5 text-[8px] font-black bg-accent text-black rounded-full border border-black min-w-[14px] h-3.5 flex items-center justify-center leading-none">
+                      {unreadCount}
+                    </span>
+                  )}
+                </button>
+              </div>
+            </div>
+
+            <button
+              onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+              className={`pointer-events-auto flex items-center justify-center rounded-full transition-all duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] border focus:outline-none z-[10002] relative w-10 h-10 cursor-pointer ${
+                isMobileMenuOpen
+                  ? 'bg-transparent border-transparent text-zinc-300'
+                  : 'bg-zinc-800/80 border-white/10 text-gray-400 hover:text-white backdrop-blur-xl saturate-[1.8] shadow-2xl'
+              }`}
+              aria-label="Toggle menu"
+            >
+              <div className="flex flex-col justify-center items-center transition-all duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] relative w-6 h-5 gap-[5px]">
+                <div className={`w-5 h-[2px] bg-white rounded transition-all duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] transform origin-center ${
+                  isMobileMenuOpen ? 'rotate-45 translate-y-[7px]' : ''
+                }`} />
+                <div className={`w-5 h-[2px] bg-white rounded transition-all duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] ${
+                  isMobileMenuOpen ? 'opacity-0 scale-0' : ''
+                }`} />
+                <div className={`w-5 h-[2px] bg-white rounded transition-all duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] transform origin-center ${
+                  isMobileMenuOpen ? '-rotate-45 -translate-y-[7px]' : ''
+                }`} />
+              </div>
+            </button>
+          </div>
+        </div>
+
+        {/* Desktop View Navbar (Identical to original desktop layout) */}
+        <div className="hidden md:flex w-full max-w-7xl items-center justify-between">
+          <div className="flex items-center gap-2.5">
             <Link href="/dashboard" className="flex items-center gap-2.5 no-underline group">
               <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-gradient-to-br from-accent to-accent-dark flex items-center justify-center text-base sm:text-lg shadow-lg">
                 💪
@@ -620,8 +741,7 @@ export default function TopNav({ broadcast, setBroadcast }) {
             </Link>
           </div>
 
-          {/* Navigation - Static Pill (Desktop Only) */}
-          <div className="hidden md:flex rounded-full p-1 items-center gap-1 shadow-2xl backdrop-blur-md" style={{ backgroundColor: '#1f1f1f' }} ref={subMenuRef}>
+          <div className="flex rounded-full p-1 items-center gap-1 shadow-2xl backdrop-blur-md" style={{ backgroundColor: '#1f1f1f' }} ref={subMenuRef}>
             {navItems.map((item) => {
               const isActive = pathname === item.href ||
                 pathname === `${item.href}/` ||
@@ -655,7 +775,6 @@ export default function TopNav({ broadcast, setBroadcast }) {
                     )}
                   </div>
 
-                  {/* Sub-items Dropdown on Click or Hover */}
                   {hasSub && (
                     <div className={`absolute top-full left-1/2 -translate-x-1/2 mt-3 flex-col bg-bg-card border border-white/10 rounded-2xl p-2 shadow-2xl min-w-[140px] z-[70] backdrop-blur-3xl
                       ${isSubOpen ? 'flex' : 'hidden group-hover:flex'}`}>
@@ -694,9 +813,7 @@ export default function TopNav({ broadcast, setBroadcast }) {
             })}
           </div>
 
-          {/* Actions & Profile */}
           <div className="flex items-center gap-2 sm:gap-3">
-            {/* Search & Notifications (Mobile & Desktop) */}
             <div className="flex items-center gap-1.5 sm:gap-2">
               <button
                 onClick={() => {
@@ -704,8 +821,8 @@ export default function TopNav({ broadcast, setBroadcast }) {
                   if (!isSearchOpen) setSearchQuery('');
                 }}
                 className={`w-9 h-9 sm:w-10 sm:h-10 rounded-full flex items-center justify-center transition-all focus:outline-none ${isSearchOpen
-                    ? 'text-[#212121] shadow-lg shadow-white/10'
-                    : 'text-[#a2a2a2] hover:text-white'
+                  ? 'text-[#212121] shadow-lg shadow-white/10'
+                  : 'text-[#a2a2a2] hover:text-white'
                   }`}
                 style={{ backgroundColor: isSearchOpen ? '#ababab' : '#1f1f1f' }}
               >
@@ -718,8 +835,8 @@ export default function TopNav({ broadcast, setBroadcast }) {
                     setIsDropdownOpen(false);
                   }}
                   className={`w-9 h-9 sm:w-10 sm:h-10 rounded-full flex items-center justify-center transition-all focus:outline-none relative ${showNotificationDrawer
-                      ? 'text-[#212121] shadow-lg shadow-white/10'
-                      : 'text-[#a2a2a2] hover:text-white'
+                    ? 'text-[#212121] shadow-lg shadow-white/10'
+                    : 'text-[#a2a2a2] hover:text-white'
                     }`}
                   style={{ backgroundColor: showNotificationDrawer ? '#ababab' : '#1f1f1f' }}
                 >
@@ -777,94 +894,157 @@ export default function TopNav({ broadcast, setBroadcast }) {
               )}
             </div>
           </div>
-
         </div>
       </nav>
 
       {/* Mobile Navigation Drawer Overlay */}
-      {isMobileMenuOpen && (
-        <div
-          className="fixed left-0 right-0 z-[58] bg-black/95 backdrop-blur-2xl border-b border-white/10 p-4 shadow-2xl md:hidden overflow-y-auto max-h-[calc(100vh-80px)] transition-all animate-fade-in"
-          style={{ top: `${totalBannerHeight + 60}px` }}
-        >
-          <div className="space-y-1 py-1">
-            {navItems.map((item) => {
-              const isActive = pathname === item.href ||
-                (item.href !== '/dashboard' && pathname.startsWith(`${item.href}/`)) ||
-                (item.subItems?.some(sub => pathname === sub.href.split('?')[0]));
-              const hasSub = !!item.subItems;
-              const isAccordionOpen = mobileAccordion === item.label;
-
-              if (!hasSub) {
-                return (
-                  <Link
-                    key={item.href}
-                    href={item.href}
-                    onClick={() => setIsMobileMenuOpen(false)}
-                    className={`flex items-center justify-between px-4 py-3 rounded-xl text-sm font-bold no-underline transition-all ${
-                      isActive ? 'bg-accent text-black shadow-lg shadow-accent/20' : 'text-gray-300 hover:bg-white/5 hover:text-white'
-                    }`}
-                  >
-                    <span>{item.label}</span>
-                    <ChevronRight size={16} className={isActive ? 'text-black' : 'text-gray-500'} />
-                  </Link>
-                );
+      <AnimatePresence>
+        {isMobileMenuOpen && (
+          <motion.div
+            key="mobile-menu-overlay"
+            variants={{
+              closed: {
+                clipPath: "circle(0px at calc(100% - 36px) 50px)"
+              },
+              open: {
+                clipPath: "circle(150% at calc(100% - 36px) 50px)",
+                transition: {
+                  duration: 0.5,
+                  ease: [0.76, 0, 0.24, 1]
+                }
+              },
+              exit: {
+                clipPath: "circle(0px at calc(100% - 36px) 50px)",
+                transition: {
+                  delay: 0.2, // Wait for slide-outs
+                  duration: 0.5,
+                  ease: [0.76, 0, 0.24, 1]
+                }
               }
+            }}
+            initial="closed"
+            animate="open"
+            exit="exit"
+            className="fixed inset-0 z-[9999] bg-black/98 backdrop-blur-2xl md:hidden flex flex-col justify-between pt-24 px-8 pb-20 pointer-events-auto overflow-y-auto"
+          >
+            <div className="flex flex-col gap-6 mt-8 mb-auto text-left pl-4 w-full">
+              {navItems.map((item, i) => {
+                const isActive = pathname === item.href ||
+                  (item.href !== '/dashboard' && pathname.startsWith(`${item.href}/`)) ||
+                  (item.subItems?.some(sub => pathname === sub.href.split('?')[0]));
+                const hasSub = !!item.subItems;
+                const isAccordionOpen = mobileAccordion === item.label;
 
-              return (
-                <div key={item.label} className="rounded-xl border border-white/5 overflow-hidden bg-white/[0.02]">
-                  <button
-                    onClick={() => setMobileAccordion(isAccordionOpen ? null : item.label)}
-                    className={`w-full flex items-center justify-between px-4 py-3 text-sm font-bold text-left transition-all ${
-                      isActive ? 'text-accent' : 'text-gray-200 hover:text-white'
-                    }`}
+                if (!hasSub) {
+                  return (
+                    <motion.div
+                      key={item.href}
+                      variants={{
+                        closed: { x: 80, opacity: 0 },
+                        open: {
+                          x: 0,
+                          opacity: 1,
+                          transition: {
+                            delay: 0.2 + i * 0.05,
+                            duration: 0.4,
+                            ease: [0.16, 1, 0.3, 1]
+                          }
+                        },
+                        exit: {
+                          x: 80,
+                          opacity: 0,
+                          transition: {
+                            delay: (navItems.length - i) * 0.03,
+                            duration: 0.25,
+                            ease: [0.76, 0, 0.24, 1]
+                          }
+                        }
+                      }}
+                    >
+                      <Link
+                        href={item.href}
+                        onClick={() => setIsMobileMenuOpen(false)}
+                        className="no-underline group flex items-center gap-4 py-2 cursor-pointer"
+                      >
+                        <span className={`text-3xl font-black tracking-tight transition-colors duration-300 ${
+                          isActive ? 'text-white' : 'text-zinc-600 group-hover:text-white'
+                        }`}>
+                          {item.label}
+                        </span>
+                      </Link>
+                    </motion.div>
+                  );
+                }
+
+                return (
+                  <motion.div
+                    key={item.label}
+                    variants={{
+                      closed: { x: 80, opacity: 0 },
+                      open: {
+                        x: 0,
+                        opacity: 1,
+                        transition: {
+                          delay: 0.2 + i * 0.05,
+                          duration: 0.4,
+                          ease: [0.16, 1, 0.3, 1]
+                        }
+                      },
+                      exit: {
+                        x: 80,
+                        opacity: 0,
+                        transition: {
+                          delay: (navItems.length - i) * 0.03,
+                          duration: 0.25,
+                          ease: [0.76, 0, 0.24, 1]
+                        }
+                      }
+                    }}
+                    className="flex flex-col gap-3"
                   >
-                    <span>{item.label}</span>
-                    <ChevronDown size={16} className={`transition-transform duration-200 ${isAccordionOpen ? 'rotate-180 text-accent' : 'text-gray-400'}`} />
-                  </button>
+                    <button
+                      onClick={() => setMobileAccordion(isAccordionOpen ? null : item.label)}
+                      className="w-full flex items-center justify-between py-2 text-left bg-transparent border-none focus:outline-none cursor-pointer"
+                    >
+                      <span className={`text-3xl font-black tracking-tight transition-colors duration-300 ${
+                        isActive ? 'text-white' : 'text-zinc-600 hover:text-white'
+                      }`}>
+                        {item.label}
+                      </span>
+                      <ChevronDown size={24} className={`transition-transform duration-300 ${
+                        isAccordionOpen ? 'rotate-180 text-white' : 'text-zinc-600'
+                      }`} />
+                    </button>
 
-                  {isAccordionOpen && (
-                    <div className="px-3 pb-3 space-y-1 border-t border-white/5 pt-2 bg-black/40">
-                      {item.subItems.map((sub) => {
-                        const [subPath] = sub.href.split('?');
-                        const isSubActive = pathname === subPath;
-                        return (
-                          <Link
-                            key={sub.href}
-                            href={sub.href}
-                            onClick={() => setIsMobileMenuOpen(false)}
-                            className={`flex items-center justify-between px-3.5 py-2.5 rounded-lg text-xs font-bold no-underline transition-all ${
-                              isSubActive ? 'bg-white/10 text-accent font-extrabold' : 'text-gray-400 hover:text-white hover:bg-white/5'
-                            }`}
-                          >
-                            <span>{sub.label}</span>
-                            <ChevronRight size={14} className="text-gray-600" />
-                          </Link>
-                        );
-                      })}
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-
-          <div className="pt-4 border-t border-white/10 mt-3 flex items-center justify-between">
-            <button
-              onClick={() => { setIsMobileMenuOpen(false); openSettings(); }}
-              className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white/5 text-gray-300 text-xs font-bold hover:bg-white/10 transition-all"
-            >
-              <Settings size={16} className="text-accent" /> Settings
-            </button>
-            <button
-              onClick={() => { setIsMobileMenuOpen(false); logout(); }}
-              className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-xs font-bold hover:bg-red-500/20 transition-all"
-            >
-              <LogOut size={16} /> Logout
-            </button>
-          </div>
-        </div>
-      )}
+                    {isAccordionOpen && (
+                      <div className="flex flex-col gap-4 pl-4 border-l border-white/10 py-2">
+                        {item.subItems.map((sub) => {
+                          const [subPath] = sub.href.split('?');
+                          const isSubActive = pathname === subPath;
+                          return (
+                            <Link
+                              key={sub.href}
+                              href={sub.href}
+                              onClick={() => setIsMobileMenuOpen(false)}
+                              className="no-underline group flex items-center py-1 cursor-pointer"
+                            >
+                              <span className={`text-xl font-bold tracking-tight transition-colors duration-300 ${
+                                isSubActive ? 'text-white' : 'text-zinc-600 hover:text-white'
+                              }`}>
+                                {sub.label}
+                              </span>
+                            </Link>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </motion.div>
+                );
+              })}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Backdrop blur overlay with opacity fade transition */}
       <div
@@ -875,8 +1055,8 @@ export default function TopNav({ broadcast, setBroadcast }) {
 
       {/* Dropdown container with smooth slide-down transition and nav-bar-matching solid black background */}
       <div className={`fixed left-0 right-0 bg-black z-[55] pt-10 pb-8 px-6 lg:px-24 shadow-2xl transition-all duration-500 ease-in-out ${isSearchOpen
-          ? 'top-[52px] lg:top-[60px] opacity-100 translate-y-0 pointer-events-auto'
-          : '-top-[600px] opacity-0 -translate-y-12 pointer-events-none'
+        ? 'top-[52px] lg:top-[60px] opacity-100 translate-y-0 pointer-events-auto'
+        : '-top-[600px] opacity-0 -translate-y-12 pointer-events-none'
         }`}>
         <div className="max-w-4xl mx-auto flex flex-col max-h-[50vh]">
 
@@ -988,8 +1168,8 @@ export default function TopNav({ broadcast, setBroadcast }) {
                                     </div>
                                   </div>
                                   <span className={`text-[8px] font-black px-1.5 py-0.5 rounded uppercase tracking-widest border ${m.status === 'active'
-                                      ? 'bg-success/10 border-success/20 text-success'
-                                      : 'bg-danger/10 border-danger/20 text-danger'
+                                    ? 'bg-success/10 border-success/20 text-success'
+                                    : 'bg-danger/10 border-danger/20 text-danger'
                                     }`}>
                                     {m.status}
                                   </span>
@@ -1053,8 +1233,8 @@ export default function TopNav({ broadcast, setBroadcast }) {
                                     </div>
                                   </div>
                                   <span className={`text-[8px] font-black px-1.5 py-0.5 rounded uppercase tracking-widest border ${t.status !== 'inactive'
-                                      ? 'bg-success/10 border-success/20 text-success'
-                                      : 'bg-danger/10 border-danger/20 text-danger'
+                                    ? 'bg-success/10 border-success/20 text-success'
+                                    : 'bg-danger/10 border-danger/20 text-danger'
                                     }`}>
                                     {t.status || 'active'}
                                   </span>
@@ -1087,8 +1267,8 @@ export default function TopNav({ broadcast, setBroadcast }) {
                                     </div>
                                   </div>
                                   <span className={`text-[8px] font-black px-1.5 py-0.5 rounded uppercase tracking-widest border ${s.status === 'active'
-                                      ? 'bg-success/10 border-success/20 text-success'
-                                      : 'bg-danger/10 border-danger/20 text-danger'
+                                    ? 'bg-success/10 border-success/20 text-success'
+                                    : 'bg-danger/10 border-danger/20 text-danger'
                                     }`}>
                                     {s.status}
                                   </span>
@@ -1113,17 +1293,15 @@ export default function TopNav({ broadcast, setBroadcast }) {
         <div className="fixed inset-0 z-[9999] flex justify-end">
           {/* Backdrop overlay */}
           <div
-            className={`absolute inset-0 bg-black/60 backdrop-blur-sm transition-opacity duration-300 ease-in-out ${
-              isNotificationDrawerOpen ? 'opacity-100' : 'opacity-0'
-            }`}
+            className={`absolute inset-0 bg-black/60 backdrop-blur-sm transition-opacity duration-300 ease-in-out ${isNotificationDrawerOpen ? 'opacity-100' : 'opacity-0'
+              }`}
             onClick={closeNotificationDrawer}
           />
 
           {/* Drawer content panel */}
           <div
-            className={`relative w-full max-w-md bg-[#0a0a0a] border-l border-white/5 h-full p-6 flex flex-col justify-between shadow-2xl transition-transform duration-300 ease-in-out transform ${
-              isNotificationDrawerOpen ? 'translate-x-0' : 'translate-x-full'
-            } overflow-y-auto`}
+            className={`relative w-full max-w-md bg-[#0a0a0a] border-l border-white/5 h-full p-6 flex flex-col justify-between shadow-2xl transition-transform duration-300 ease-in-out transform ${isNotificationDrawerOpen ? 'translate-x-0' : 'translate-x-full'
+              } overflow-y-auto`}
           >
             <div className="space-y-8 flex-1 flex flex-col h-full">
               {/* Header */}

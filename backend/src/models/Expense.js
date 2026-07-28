@@ -32,4 +32,6 @@ const ExpenseSchema = new mongoose.Schema({
   timestamps: true
 });
 
+ExpenseSchema.index({ gymOwner: 1, date: -1 });
+
 module.exports = mongoose.model('Expense', ExpenseSchema);
