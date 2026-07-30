@@ -46,5 +46,6 @@ const attendanceSchema = new mongoose.Schema({
 // Single robust unique index for daily attendance per person
 attendanceSchema.index({ gymOwner: 1, member: 1, date: 1 }, { unique: true });
 attendanceSchema.index({ gymOwner: 1, date: 1 });
+attendanceSchema.index({ gymOwner: 1, date: -1, checkInTime: -1 });
 
 module.exports = mongoose.model('Attendance', attendanceSchema);

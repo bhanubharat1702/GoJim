@@ -4,6 +4,18 @@ import { authApi } from '@/lib/api';
 
 const AuthContext = createContext(null);
 
+const setTokenCookie = (token) => {
+  if (typeof window !== 'undefined') {
+    document.cookie = `gojim_token=${token}; path=/; max-age=3600; SameSite=Lax; Secure`;
+  }
+};
+
+const deleteTokenCookie = () => {
+  if (typeof window !== 'undefined') {
+    document.cookie = 'gojim_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax; Secure';
+  }
+};
+
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [token, setToken] = useState(null);
@@ -16,6 +28,7 @@ export function AuthProvider({ children }) {
       localStorage.setItem('gojim_token', res.token);
       localStorage.setItem('gojim_user', JSON.stringify(res.user));
       localStorage.setItem('gojim_last_activity', Date.now().toString());
+      setTokenCookie(res.token);
       setToken(res.token);
       setUser(res.user);
     }
@@ -28,6 +41,7 @@ export function AuthProvider({ children }) {
       localStorage.setItem('gojim_token', res.token);
       localStorage.setItem('gojim_user', JSON.stringify(res.user));
       localStorage.setItem('gojim_last_activity', Date.now().toString());
+      setTokenCookie(res.token);
       setToken(res.token);
       setUser(res.user);
     }
@@ -43,6 +57,7 @@ export function AuthProvider({ children }) {
       localStorage.removeItem('gojim_token');
       localStorage.removeItem('gojim_user');
       localStorage.removeItem('gojim_last_activity');
+      deleteTokenCookie();
       setToken(null);
       setUser(null);
     }
@@ -68,9 +83,11 @@ export function AuthProvider({ children }) {
         localStorage.removeItem('gojim_token');
         localStorage.removeItem('gojim_user');
         localStorage.removeItem('gojim_last_activity');
+        deleteTokenCookie();
         setToken(null);
         setUser(null);
       } else {
+        setTokenCookie(savedToken);
         setToken(savedToken);
         setUser(JSON.parse(savedUser));
         localStorage.setItem('gojim_last_activity', now.toString());

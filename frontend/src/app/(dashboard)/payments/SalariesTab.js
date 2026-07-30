@@ -36,6 +36,7 @@ export default function SalariesTab() {
   const [sortConfig, setSortConfig] = useState({ key: 'default', direction: 'desc' });
   const [toasts, setToasts] = useState([]);
   const [deleteConfirmState, setDeleteConfirmState] = useState(null);
+  const [expandedSalaryId, setExpandedSalaryId] = useState(null);
 
   const showToast = (message, type = 'success') => {
     const id = Date.now() + Math.random();
@@ -765,7 +766,8 @@ export default function SalariesTab() {
             description="Try adjusting your filters or record a new salary payout to get started."
           />
         ) : (
-          <div className="max-h-[292px] overflow-y-auto relative rounded-2xl border border-white/5">
+          <>
+            <div className="hidden md:block max-h-[292px] overflow-y-auto relative rounded-2xl border border-white/5">
             <table className="w-full text-left border-collapse">
             <thead className="sticky top-0 bg-[#0a0a0a] z-10 border-b border-white/5 shadow-md">
               <tr className="bg-white/[0.02]">
@@ -844,6 +846,112 @@ export default function SalariesTab() {
               </tbody>
             </table>
           </div>
+
+          {/* Mobile Collapsible Cards View */}
+          {filteredExpenses.length === 0 ? (
+            <div className="block md:hidden text-center py-12 text-text-muted font-bold text-xs uppercase tracking-widest opacity-60">
+              No salary records match the selected filters.
+            </div>
+          ) : (
+            <div className="block md:hidden space-y-3 max-h-[360px] overflow-y-auto pb-4 pr-1">
+              {filteredExpenses.map((e, idx) => {
+                const isExpanded = expandedSalaryId === e._id;
+                const expenseLabel = getExpenseLabel(e.title);
+                const expenseMonth = getMonthFromTitle(e.title);
+                const expenseNote = getNoteFromTitle(e.title);
+                const expenseCategory = getCategoryFromTitle(e.title, e.category);
+                const formattedDate = getFormattedDate(e.date);
+                const initials = expenseLabel ? expenseLabel.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase() : 'S';
+
+                return (
+                  <div
+                    key={e._id}
+                    className={`border border-white/5 rounded-2xl transition-all ${
+                      isExpanded ? 'bg-white/[0.03] shadow-lg' : 'bg-white/[0.01]'
+                    }`}
+                  >
+                    {/* Card Header (Collapsed State) */}
+                    <div
+                      onClick={() => setExpandedSalaryId(isExpanded ? null : e._id)}
+                      className="p-4 flex items-center justify-between cursor-pointer select-none"
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="w-9 h-9 rounded-xl flex items-center justify-center font-black text-[10px] shadow-lg border bg-gradient-to-br from-white/10 to-white/5 text-white border-white/5">
+                          {initials}
+                        </div>
+                        <div>
+                          <p className="text-xs font-black text-white">{expenseLabel}</p>
+                          <p className="text-[9px] font-bold text-text-muted uppercase tracking-wider mt-0.5">
+                            {expenseCategory} • {expenseMonth || 'Salary'}
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+                        <span className="text-xs font-black text-success">
+                          ₹{e.amount?.toLocaleString()}
+                        </span>
+                        <button
+                          onClick={() => setExpandedSalaryId(isExpanded ? null : e._id)}
+                          className="w-7 h-7 rounded-lg flex items-center justify-center bg-white/5 text-text-muted hover:text-white"
+                        >
+                          {isExpanded ? <ChevronUp size={14} className="text-accent" /> : <ChevronDown size={14} />}
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Card Body (Expanded State) */}
+                    {isExpanded && (
+                      <div className="px-4 pb-4 pt-1 border-t border-white/5 space-y-3">
+                        {/* Separator */}
+                        <div className="h-px bg-white/5 w-full" />
+                        
+                        <div className="grid grid-cols-2 gap-y-3 gap-x-2 text-[10px]">
+                          <div>
+                            <span className="text-text-muted font-bold block uppercase tracking-wider text-[8px] mb-0.5">Payment Method</span>
+                            <span className="text-white font-extrabold uppercase">
+                              {e.paymentMethod || 'N/A'}
+                            </span>
+                          </div>
+                          <div>
+                            <span className="text-text-muted font-bold block uppercase tracking-wider text-[8px] mb-0.5">Paid On</span>
+                            <span className="text-white font-extrabold">{formattedDate}</span>
+                          </div>
+                          {expenseNote && (
+                            <div className="col-span-2">
+                              <span className="text-text-muted font-bold block uppercase tracking-wider text-[8px] mb-0.5">Note</span>
+                              <span className="text-white font-extrabold block max-w-full truncate">{expenseNote}</span>
+                            </div>
+                          )}
+                          {e.note && (
+                            <div className="col-span-2">
+                              <span className="text-text-muted font-bold block uppercase tracking-wider text-[8px] mb-0.5">Description Note</span>
+                              <span className="text-white font-extrabold block max-w-full truncate">{e.note}</span>
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Separator */}
+                        <div className="h-px bg-white/5 w-full" />
+
+                        {/* Action Toolbar */}
+                        <div className="flex items-center justify-end pt-1">
+                          <button
+                            onClick={() => handleDelete(e._id)}
+                            className="w-9 h-7 flex items-center justify-center rounded-lg bg-danger/10 text-danger hover:bg-danger hover:text-white border border-danger/20 transition-all cursor-pointer"
+                            title="Delete"
+                          >
+                            <Trash2 size={12} />
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+          </>
         )}
       </div>
 

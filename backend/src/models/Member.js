@@ -178,6 +178,7 @@ memberSchema.index({ gymOwner: 1, membershipEndDate: 1 });
 memberSchema.index({ gymOwner: 1, name: 1 });
 memberSchema.index({ gymOwner: 1, phone: 1 });
 memberSchema.index({ gymOwner: 1, status: 1 });
+memberSchema.index({ gymOwner: 1, createdAt: -1 });
 memberSchema.index({ name: 'text', phone: 'text' });
 
 module.exports = mongoose.model('Member', memberSchema);

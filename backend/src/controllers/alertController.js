@@ -45,7 +45,9 @@ exports.getAlerts = async (req, res) => {
       return res.status(200).json({ success: true, count: 0, total: 0, data: [] });
     }
 
-    await autoInactivateMembers(req.gymOwnerId);
+    autoInactivateMembers(req.gymOwnerId).catch(err => {
+      console.error('Background auto-inactivation failed:', err);
+    });
 
     // Self-healing: if no members and no leads exist in system for this gymOwner, clear all legacy alerts
     const memberCount = await Member.countDocuments({ gymOwner: req.gymOwnerId });
@@ -105,7 +107,9 @@ exports.generateAlerts = async (req, res) => {
       return res.status(200).json({ success: true, generated: 0, data: [] });
     }
 
-    await autoInactivateMembers(req.gymOwnerId);
+    autoInactivateMembers(req.gymOwnerId).catch(err => {
+      console.error('Background auto-inactivation failed:', err);
+    });
 
     // Dynamic clean-up: if no members/leads exist in the system, clear alerts and exit
     const memberCount = await Member.countDocuments({ gymOwner: req.gymOwnerId });

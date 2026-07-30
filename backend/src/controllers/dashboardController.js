@@ -10,7 +10,9 @@ const { autoInactivateMembers } = require('./memberController');
 exports.getDashboard = async (req, res) => {
   try {
     if (req.gymOwnerId) {
-      await autoInactivateMembers(req.gymOwnerId);
+      autoInactivateMembers(req.gymOwnerId).catch(err => {
+        console.error('Background auto-inactivation failed:', err);
+      });
     }
     const today = new Date().toISOString().split('T')[0];
     const now = new Date();
@@ -86,6 +88,23 @@ exports.getDashboard = async (req, res) => {
     }
 
     // Revenue & Expense trend (last 6 months)
+    const startOf6Months = new Date();
+    startOf6Months.setDate(1);
+    startOf6Months.setHours(0, 0, 0, 0);
+    startOf6Months.setMonth(startOf6Months.getMonth() - 5);
+
+    const [payments6Months, expenses6Months] = await Promise.all([
+      Payment.find({
+        gymOwner: req.gymOwnerId,
+        paymentDate: { $gte: startOf6Months },
+        status: 'paid'
+      }).select('amount paymentDate'),
+      Expense.find({
+        gymOwner: req.gymOwnerId,
+        date: { $gte: startOf6Months }
+      }).select('amount date')
+    ]);
+
     const revenueTrend = [];
     for (let i = 5; i >= 0; i--) {
       const d = new Date();
@@ -93,34 +112,18 @@ exports.getDashboard = async (req, res) => {
       d.setMonth(d.getMonth() - i);
       const startOfMonth = new Date(d.getFullYear(), d.getMonth(), 1);
       const endOfMonth = new Date(d.getFullYear(), d.getMonth() + 1, 0, 23, 59, 59, 999);
-      
-      const [rev, exp] = await Promise.all([
-        Payment.aggregate([
-          { 
-            $match: { 
-              gymOwner: req.gymOwnerId, 
-              paymentDate: { $gte: startOfMonth, $lte: endOfMonth }, 
-              status: 'paid' 
-            } 
-          },
-          { $group: { _id: null, total: { $sum: '$amount' } } }
-        ]),
-        Expense.aggregate([
-          { 
-            $match: { 
-              gymOwner: req.gymOwnerId, 
-              date: { $gte: startOfMonth, $lte: endOfMonth } 
-            } 
-          },
-          { $group: { _id: null, total: { $sum: '$amount' } } }
-        ])
-      ]);
-      
+
+      const monthlyPayments = payments6Months.filter(p => p.paymentDate >= startOfMonth && p.paymentDate <= endOfMonth);
+      const monthlyExpenses = expenses6Months.filter(e => e.date >= startOfMonth && e.date <= endOfMonth);
+
+      const revenueSum = monthlyPayments.reduce((sum, p) => sum + (p.amount || 0), 0);
+      const expenseSum = monthlyExpenses.reduce((sum, e) => sum + (e.amount || 0), 0);
+
       revenueTrend.push({
         month: d.toLocaleDateString('en', { month: 'short' }),
         year: d.getFullYear(),
-        revenue: rev[0]?.total || 0,
-        expense: exp[0]?.total || 0
+        revenue: revenueSum,
+        expense: expenseSum
       });
     }
 

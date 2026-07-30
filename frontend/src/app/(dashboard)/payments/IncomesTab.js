@@ -29,6 +29,7 @@ export default function IncomesTab() {
   const [form, setForm] = useState({ memberId: '', amount: '', plan: 'monthly', paymentMethod: 'cash' });
   const [sortConfig, setSortConfig] = useState({ key: 'default', direction: 'desc' });
   const [selectedUpi, setSelectedUpi] = useState('');
+  const [expandedIncomeId, setExpandedIncomeId] = useState(null);
 
   useEffect(() => {
     if (user?.upiId && !selectedUpi) {
@@ -881,7 +882,8 @@ export default function IncomesTab() {
             description="Try adjusting your filters or record a new payment to get started."
           />
         ) : (
-          <div className="max-h-[292px] overflow-y-auto relative rounded-2xl border border-white/5">
+          <>
+            <div className="hidden md:block max-h-[292px] overflow-y-auto relative rounded-2xl border border-white/5">
             <table className="w-full text-left border-collapse">
               <thead className="sticky top-0 bg-[#0a0a0a] z-10 border-b border-white/5 shadow-md">
                 <tr className="bg-white/[0.02]">
@@ -1048,6 +1050,185 @@ export default function IncomesTab() {
               </tbody>
             </table>
           </div>
+
+          {/* Mobile Collapsible Cards View */}
+          {filteredCombinedData.length === 0 ? (
+            <div className="block md:hidden text-center py-12 text-text-muted font-bold text-xs uppercase tracking-widest opacity-60">
+              No transactions match the selected filters.
+            </div>
+          ) : (
+            <div className="block md:hidden space-y-3 max-h-[360px] overflow-y-auto pb-4 pr-1">
+              {filteredCombinedData.map((item, idx) => {
+                const isExpanded = expandedIncomeId === item._id;
+                const isPending = item.type === 'pending';
+                const isCancelled = item.status === 'cancelled';
+                const m = item.member;
+                const isExpired = isPending && m?.planExpiry && new Date(m.planExpiry) < new Date();
+                const initials = m?.name ? m.name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase() : 'M';
+                
+                const isPtPayment = item.isPtPayment || (item.notes && (item.notes.toLowerCase().includes('pt') || item.notes.toLowerCase().includes('personal')));
+                const badgeText = (item.notes || '').toLowerCase().includes('upgrade') ? 'PT' : 'Training + PT';
+
+                return (
+                  <div
+                    key={item._id}
+                    className={`border border-white/5 rounded-2xl transition-all ${
+                      isExpanded ? 'bg-white/[0.03] shadow-lg' : 'bg-white/[0.01]'
+                    }`}
+                  >
+                    {/* Card Header (Collapsed State) */}
+                    <div
+                      onClick={() => handleMemberClick(m)}
+                      className="p-4 flex items-center justify-between cursor-pointer select-none"
+                    >
+                      <div className="flex items-center gap-3">
+                        {isPending ? (
+                          <div className={`w-9 h-9 rounded-xl flex items-center justify-center font-black text-[10px] shadow-lg ${isExpired ? 'bg-danger/20 text-danger border border-danger/10' : 'bg-warning/20 text-warning border border-warning/10'}`}>
+                            <AlertCircle size={14} />
+                          </div>
+                        ) : (
+                          <div
+                            className={`w-9 h-9 rounded-xl flex items-center justify-center font-black text-[10px] shadow-lg border ${
+                              m?.gender === 'female'
+                                ? 'bg-gradient-to-br from-pink-500/20 to-pink-500/5 text-pink-200 border-pink-500/10'
+                                : m?.gender === 'male'
+                                ? 'bg-gradient-to-br from-blue-500/20 to-blue-500/5 text-blue-200 border-blue-500/10'
+                                : 'bg-gradient-to-br from-white/10 to-white/5 text-white border-white/5'
+                            }`}
+                          >
+                            {initials}
+                          </div>
+                        )}
+                        <div>
+                          <p className="text-xs font-black text-white flex items-center gap-1.5">
+                            <span>{m?.name || 'Deleted Member'}</span>
+                            {isPending && (
+                              <Badge variant={isExpired ? 'danger' : 'warning'} size="sm">
+                                {isExpired ? 'Expired' : 'Due'}
+                              </Badge>
+                            )}
+                          </p>
+                          <div className="flex items-center gap-1.5 mt-0.5">
+                            <span className={`text-[8.5px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded-md border ${isCancelled ? 'bg-danger/10 text-danger border-danger/20 line-through' : 'text-text-secondary bg-white/5 border-white/5'}`}>{item.plan}</span>
+                            {isPtPayment && (
+                              <span className={`text-[8px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded-md ${isCancelled ? 'text-danger bg-danger/10 border border-danger/20 line-through' : 'text-accent bg-accent/15 border border-accent/30'}`}>
+                                {badgeText}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+                        <span className={`text-xs font-black ${isCancelled ? 'text-text-muted line-through' : isPending ? 'text-white/50' : 'text-success'}`}>
+                          ₹{item.amount?.toLocaleString()}
+                        </span>
+                        <button
+                          onClick={() => setExpandedIncomeId(isExpanded ? null : item._id)}
+                          className="w-7 h-7 rounded-lg flex items-center justify-center bg-white/5 text-text-muted hover:text-white"
+                        >
+                          {isExpanded ? <ChevronUp size={14} className="text-accent" /> : <ChevronDown size={14} />}
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Card Body (Expanded State) */}
+                    {isExpanded && (
+                      <div className="px-4 pb-4 pt-1 border-t border-white/5 space-y-3">
+                        {/* Separator */}
+                        <div className="h-px bg-white/5 w-full" />
+                        
+                        <div className="grid grid-cols-2 gap-y-3 gap-x-2 text-[10px]">
+                          <div>
+                            <span className="text-text-muted font-bold block uppercase tracking-wider text-[8px] mb-0.5">Contact</span>
+                            <a href={`tel:${m?.phone}`} className="text-white font-extrabold hover:underline">
+                              {m?.phone || 'N/A'}
+                            </a>
+                          </div>
+                          <div>
+                            <span className="text-text-muted font-bold block uppercase tracking-wider text-[8px] mb-0.5">Payment Method</span>
+                            <div className="flex items-center gap-1.5 text-white font-extrabold uppercase">
+                              {methodIcon[item.paymentMethod]}
+                              <span>{item.paymentMethod?.replace('_', ' ') || 'N/A'}</span>
+                            </div>
+                          </div>
+                          <div>
+                            <span className="text-text-muted font-bold block uppercase tracking-wider text-[8px] mb-0.5">Paid On</span>
+                            <span className="text-white font-extrabold">
+                              {isPending ? (
+                                <span className={isExpired ? 'text-danger' : 'text-warning'}>
+                                  {item.lastPaymentDate ? formatSafeDate(item.lastPaymentDate) : 'No payments'}
+                                </span>
+                              ) : (
+                                <span className={isCancelled ? 'line-through text-text-muted' : ''}>
+                                  {formatSafeDate(item.paymentDate)}
+                                </span>
+                              )}
+                            </span>
+                          </div>
+                          <div>
+                            <span className="text-text-muted font-bold block uppercase tracking-wider text-[8px] mb-0.5">Validity/Expiry</span>
+                            <span className={`font-extrabold ${isCancelled ? 'text-text-muted line-through' : isPending ? (isExpired ? 'text-danger' : 'text-warning') : 'text-white'}`}>
+                              {formatSafeDate(item.newExpiry)}
+                            </span>
+                          </div>
+                          {item.notes && (
+                            <div className="col-span-2">
+                              <span className="text-text-muted font-bold block uppercase tracking-wider text-[8px] mb-0.5">Notes</span>
+                              <span className="text-white font-extrabold italic block max-w-full truncate">{item.notes}</span>
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Separator */}
+                        <div className="h-px bg-white/5 w-full" />
+
+                        {/* Action Toolbar */}
+                        <div className="flex items-center gap-2 pt-1">
+                          {isPending ? (
+                            <button
+                              onClick={() => {
+                                setForm({ ...form, memberId: m._id, amount: m.planAmount, plan: m.plan });
+                                setShowAdd(true);
+                              }}
+                              className="flex-1 flex items-center justify-center gap-1 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest bg-accent/15 text-accent hover:bg-accent hover:text-black border border-accent/20 transition-all cursor-pointer"
+                            >
+                              <CreditCard size={12} />
+                              Pay Now
+                            </button>
+                          ) : (
+                            <span className="text-[9px] text-text-muted font-extrabold uppercase italic">No pending dues</span>
+                          )}
+                          
+                          {m?.assignedTrainer && (
+                            <button
+                              type="button"
+                              onClick={() => setCancelPtMemberId(m._id)}
+                              className="w-9 h-7 flex items-center justify-center rounded-lg bg-warning/10 text-warning hover:bg-warning hover:text-white border border-warning/20 transition-all cursor-pointer"
+                              title="Cancel PT (Unassign Coach)"
+                            >
+                              <UserMinus size={12} />
+                            </button>
+                          )}
+                          {!isPending && !isCancelled && (
+                            <button
+                              type="button"
+                              onClick={() => setCancelPaymentId(item._id)}
+                              className="w-9 h-7 flex items-center justify-center rounded-lg bg-danger/10 text-danger hover:bg-danger hover:text-white border border-danger/20 transition-all cursor-pointer"
+                              title="Cancel Payment (Revert Plan)"
+                            >
+                              <Trash2 size={12} />
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+          </>
         )}
       </div>
 

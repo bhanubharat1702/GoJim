@@ -70,10 +70,19 @@ const calculateAge = (dob) => {
 };
 
 // Helper to auto-inactivate members who haven't paid for 2 months
-// AND auto-deactivate members who haven't visited in X days (deactivationThresholdDays)
+// AND auto-deactivate members society members who haven't visited in X days (deactivationThresholdDays)
+const lastAutoInactivationRun = new Map();
+
 const autoInactivateMembers = async (gymOwnerId) => {
   try {
     if (!gymOwnerId) return;
+
+    const nowTime = Date.now();
+    const lastRun = lastAutoInactivationRun.get(gymOwnerId.toString());
+    if (lastRun && (nowTime - lastRun < 15 * 60 * 1000)) { // 15 minutes throttle
+      return;
+    }
+    lastAutoInactivationRun.set(gymOwnerId.toString(), nowTime);
 
     // 1. Get gym owner settings
     const owner = await User.findById(gymOwnerId);
@@ -102,22 +111,45 @@ const autoInactivateMembers = async (gymOwnerId) => {
 
     // 4. Reactivate inactive members who are within the threshold (i.e. absent for less than thresholdDays)
     const now = new Date();
-    const membersToReactivate = await Member.find({
-      gymOwner: gymOwnerId,
-      status: 'inactive',
-      $or: [
-        { lastAttendance: { $gte: deactivationDate } },
-        { lastAttendance: null, joinDate: { $gte: deactivationDate } }
-      ]
-    });
-
-    if (membersToReactivate.length > 0) {
-      for (const m of membersToReactivate) {
-        const isPlanActive = m.planExpiry && m.planExpiry >= now;
-        m.status = isPlanActive ? 'active' : 'expired';
-        await m.save();
+    
+    await Member.updateMany(
+      {
+        gymOwner: gymOwnerId,
+        status: 'inactive',
+        $or: [
+          { lastAttendance: { $gte: deactivationDate } },
+          { lastAttendance: null, joinDate: { $gte: deactivationDate } }
+        ],
+        planExpiry: { $gte: now }
+      },
+      {
+        $set: {
+          status: 'active',
+          membershipStatus: 'Active'
+        }
       }
-    }
+    );
+
+    await Member.updateMany(
+      {
+        gymOwner: gymOwnerId,
+        status: 'inactive',
+        $or: [
+          { lastAttendance: { $gte: deactivationDate } },
+          { lastAttendance: null, joinDate: { $gte: deactivationDate } }
+        ],
+        $or: [
+          { planExpiry: { $lt: now } },
+          { planExpiry: null }
+        ]
+      },
+      {
+        $set: {
+          status: 'expired',
+          membershipStatus: 'Expired'
+        }
+      }
+    );
   } catch (err) {
     console.error('Error in autoInactivateMembers:', err);
   }
@@ -130,8 +162,10 @@ exports.getMembers = async (req, res) => {
     const { status, search, page = 1, limit = 20, excludeInactive } = req.query;
     const query = { gymOwner: req.gymOwnerId };
 
-    // Run auto-inactivation
-    await autoInactivateMembers(req.gymOwnerId);
+    // Run auto-inactivation in background
+    autoInactivateMembers(req.gymOwnerId).catch(err => {
+      console.error('Background auto-inactivation failed:', err);
+    });
 
     const now = new Date();
     if (status && status !== 'all') {
@@ -560,7 +594,10 @@ exports.getExpiringMembers = async (req, res) => {
 // @route   GET /api/members/stats
 exports.getMemberStats = async (req, res) => {
   try {
-    await autoInactivateMembers(req.gymOwnerId);
+    // Run auto-inactivation in background
+    autoInactivateMembers(req.gymOwnerId).catch(err => {
+      console.error('Background auto-inactivation failed:', err);
+    });
 
     const now = new Date();
     const currentMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
