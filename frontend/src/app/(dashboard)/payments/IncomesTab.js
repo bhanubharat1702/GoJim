@@ -1,5 +1,6 @@
 'use client';
-import { useState, useEffect } from 'react';
+import { useState, useEffect , useRef} from 'react';
+import { useInView } from 'react-intersection-observer';
 import { paymentsApi, membersApi, plansApi } from '@/lib/api';
 import { useAuth } from '@/context/AuthContext';
 import { PageHeader, Modal, StatCard, Select, Badge, Loader, DatePicker, SearchBar, EmptyState } from '@/components/UI';
@@ -149,24 +150,56 @@ export default function IncomesTab() {
   const [loadingHistory, setLoadingHistory] = useState(false);
   const [calendarYear, setCalendarYear] = useState(new Date().getFullYear());
 
-  const fetchData = async () => {
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+
+  // Infinite Scroll Hook
+  const { ref: loadMoreRef, inView } = useInView({
+    threshold: 0,
+    rootMargin: '100px',
+  });
+
+  useEffect(() => {
+    if (inView && hasMore && !loading && !loadingMore) {
+      fetchData(true);
+    }
+  }, [inView, hasMore, loading, loadingMore]);
+
+  const fetchData = async (isLoadMore = false) => {
     try {
+      if (isLoadMore) setLoadingMore(true);
+      
+      const currentPage = isLoadMore ? page + 1 : 1;
+
       const [payRes, statRes, pendingRes, memRes, planRes, memStatsRes] = await Promise.all([
-        paymentsApi.getAll('limit=1000'),
-        paymentsApi.getStats(),
-        membersApi.getExpiring(),
-        membersApi.getAll('limit=200'),
-        plansApi.getAll(),
-        membersApi.getStats()
+        paymentsApi.getAll(`limit=50&page=${currentPage}`),
+        !isLoadMore ? paymentsApi.getStats() : Promise.resolve({ success: false }),
+        !isLoadMore ? membersApi.getExpiring() : Promise.resolve({ success: false }),
+        !isLoadMore ? membersApi.getAll('limit=200') : Promise.resolve({ success: false }),
+        !isLoadMore ? plansApi.getAll() : Promise.resolve({ success: false }),
+        !isLoadMore ? membersApi.getStats() : Promise.resolve({ success: false })
       ]);
-      if (payRes.success) setPayments(payRes.data);
+
+      if (payRes.success) {
+        if (isLoadMore) {
+          setPayments(prev => [...prev, ...payRes.data]);
+        } else {
+          setPayments(payRes.data);
+        }
+        setHasMore(payRes.page < payRes.pages);
+        setPage(payRes.page || currentPage);
+      }
       if (statRes.success) setStats(statRes.data);
       if (pendingRes.success) setPendingMembers(pendingRes.data);
       if (memRes.success) setMembers(memRes.data);
       if (planRes.success) setPlans(planRes.data);
       if (memStatsRes.success) setMemberStats(memStatsRes.data);
     } catch (err) { console.error(err); }
-    finally { setLoading(false); }
+    finally { 
+      setLoading(false); 
+      setLoadingMore(false);
+    }
   };
 
   const handleCancelPayment = async () => {
@@ -195,7 +228,10 @@ export default function IncomesTab() {
     }
   };
 
+  const hasFetched = useRef(false);
   useEffect(() => {
+    if (hasFetched.current) return;
+    hasFetched.current = true;
     fetchData();
   }, []);
 
@@ -1227,6 +1263,13 @@ export default function IncomesTab() {
                 );
               })}
             </div>
+            
+            {/* Infinite Scroll Trigger */}
+            {hasMore && (
+              <div ref={loadMoreRef} className="py-6 flex justify-center w-full">
+                <Loader size="sm" />
+              </div>
+            )}
           )}
           </>
         )}

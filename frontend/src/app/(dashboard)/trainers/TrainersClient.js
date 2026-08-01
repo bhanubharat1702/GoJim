@@ -282,26 +282,17 @@ export default function TrainersClient({ initialTrainers, initialPlans, initialP
     });
   };
 
-  // Dynamically fetch the latest user settings/slots on mount to ensure fresh synchronization
-  useEffect(() => {
-    authApi.getMe().then(res => {
-      if (res.success && res.user && updateUser) {
-        updateUser(res.user);
-      }
-    }).catch(err => console.error('Failed to sync timeSlots in trainers page:', err));
-  }, []);
 
   useEffect(() => {
     const timer = setTimeout(() => setDebouncedSearch(search), 400);
     return () => clearTimeout(timer);
   }, [search]);
 
-  const isInitialMount = useRef(true);
+  const initialDeps = useRef(JSON.stringify([debouncedSearch, filter, sortBy]));
   useEffect(() => {
-    if (isInitialMount.current) {
-      isInitialMount.current = false;
-      if (initialTrainers && initialTrainers.length > 0) return;
-    }
+    const currentDeps = JSON.stringify([debouncedSearch, filter, sortBy]);
+    if (currentDeps === initialDeps.current) return;
+    
     fetchTrainers();
   }, [debouncedSearch, filter, sortBy]);
 

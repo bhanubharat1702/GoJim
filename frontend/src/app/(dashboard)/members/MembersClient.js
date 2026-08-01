@@ -1,6 +1,7 @@
 'use client';
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { useSearchParams } from 'next/navigation';
+import { useInView } from 'react-intersection-observer';
 import { membersApi, paymentsApi, whatsappApi, trainersApi, plansApi, attendanceApi, authApi } from '@/lib/api';
 import { PageHeader, SearchBar, Loader, Modal, Badge, EmptyState, DatePicker, Select, StatCard } from '@/components/UI';
 import { cleanPhone, validatePhone } from '@/lib/utils';
@@ -490,14 +491,6 @@ export default function MembersClient({ initialMembers, initialStats, initialTra
     }
   };
 
-  // Dynamically fetch the latest user settings/slots on mount to ensure fresh synchronization
-  useEffect(() => {
-    authApi.getMe().then(res => {
-      if (res.success && res.user && updateUser) {
-        updateUser(res.user);
-      }
-    }).catch(err => console.error('Failed to sync timeSlots in members page:', err));
-  }, []);
 
   useEffect(() => {
     if (searchParams.get('action') === 'add') setShowAdd(true);
@@ -537,6 +530,18 @@ export default function MembersClient({ initialMembers, initialStats, initialTra
     }
   }, [previewId, members]);
 
+  // Infinite Scroll Hook
+  const { ref: loadMoreRef, inView } = useInView({
+    threshold: 0,
+    rootMargin: '100px',
+  });
+
+  useEffect(() => {
+    if (inView && pagination.page < pagination.pages && !loading && !loadingMore) {
+      fetchMembers(true);
+    }
+  }, [inView, pagination.page, pagination.pages, loading, loadingMore]);
+
   const fetchMembers = async (isLoadMore = false, isSilent = false, refreshStatic = false) => {
     try {
       if (isLoadMore) setLoadingMore(true);
@@ -546,7 +551,7 @@ export default function MembersClient({ initialMembers, initialStats, initialTra
 
       let res;
       const currentPage = isLoadMore ? pagination.page + 1 : 1;
-      const query = `search=${debouncedSearch}&plan=${planFilter}&gender=${genderFilter}&sort=${sortBy}&page=${currentPage}&limit=1000`;
+      const query = `search=${debouncedSearch}&plan=${planFilter}&gender=${genderFilter}&sort=${sortBy}&page=${currentPage}&limit=50`;
 
       const [membersRes, statsRes, trainRes, planRes] = await Promise.all([
         membersApi.getAll(query),
@@ -556,8 +561,14 @@ export default function MembersClient({ initialMembers, initialStats, initialTra
       ]);
 
       if (membersRes.success) {
-        if (isLoadMore) setMembers([...members, ...membersRes.data]);
+        if (isLoadMore) setMembers(prev => [...prev, ...membersRes.data]);
         else setMembers(membersRes.data);
+        
+        setPagination({
+          page: membersRes.page || currentPage,
+          pages: membersRes.pages || 1,
+          total: membersRes.total || (isLoadMore ? pagination.total : membersRes.data.length)
+        });
       }
 
       if (statsRes.success) setStats(statsRes.data);
@@ -579,14 +590,13 @@ export default function MembersClient({ initialMembers, initialStats, initialTra
     const timer = setTimeout(() => setDebouncedSearch(search), 400);
     return () => clearTimeout(timer);
   }, [search]);
-  const isInitialMount = useRef(true);
+  const initialDeps = useRef(JSON.stringify([planFilter, genderFilter, debouncedSearch, sortBy]));
   useEffect(() => {
-    if (isInitialMount.current) {
-      isInitialMount.current = false;
-      if (initialMembers && initialMembers.length > 0) return;
-    }
+    const currentDeps = JSON.stringify([planFilter, genderFilter, debouncedSearch, sortBy]);
+    if (currentDeps === initialDeps.current) return;
+    
     fetchMembers();
-  }, [filter, planFilter, genderFilter, debouncedSearch, sortBy]);
+  }, [planFilter, genderFilter, debouncedSearch, sortBy]);
 
   useEffect(() => {
     const handleSettingsUpdate = () => {
@@ -1914,6 +1924,13 @@ export default function MembersClient({ initialMembers, initialStats, initialTra
                 );
               })}
             </div>
+
+            {/* Infinite Scroll Trigger */}
+            {pagination.page < pagination.pages && (
+              <div ref={loadMoreRef} className="py-6 flex justify-center w-full">
+                <Loader size="sm" />
+              </div>
+            )}
 
             {/* Mobile View: Floating Action Button (FAB) matching user screenshot (uses system accent color) */}
             <button

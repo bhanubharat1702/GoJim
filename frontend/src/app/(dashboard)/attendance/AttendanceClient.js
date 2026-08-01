@@ -1,6 +1,7 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { useInView } from 'react-intersection-observer';
 import { useRouter } from 'next/navigation';
 import { List } from 'react-window';
 import { attendanceApi } from '@/lib/api';
@@ -178,11 +179,83 @@ export default function AttendanceClient({ initialPeople, initialAttendance, rol
   const currentRole = role || 'clients';
 
   const [people, setPeople] = useState(initialPeople || []);
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(initialPeople?.length === 50);
+  const [loadingMore, setLoadingMore] = useState(false);
+  
   const [statusMap, setStatusMap] = useState({});
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedDate, setSelectedDate] = useState(date);
   const [statusFilter, setStatusFilter] = useState('all'); // 'all' | 'present' | 'absent' | 'unmarked'
   const [actionLoading, setActionLoading] = useState({});
+
+  const { ref: loadMoreRef, inView } = useInView({
+    threshold: 0,
+    rootMargin: '100px',
+  });
+
+  const loadMorePeople = async () => {
+    if (loadingMore || !hasMore) return;
+    setLoadingMore(true);
+    
+    try {
+      const nextPage = page + 1;
+      let endpoint = '';
+      if (currentRole === 'clients') endpoint = `/members?limit=50&page=${nextPage}&excludeInactive=true`;
+      else if (currentRole === 'trainers') endpoint = `/trainers?limit=50&page=${nextPage}`;
+      else if (currentRole === 'staff') endpoint = `/staff?limit=50&page=${nextPage}`;
+
+      const [peopleRes, attRes] = await Promise.all([
+        fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001/api'}${endpoint}`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        }).then(res => res.json()),
+        fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001/api'}/attendance?startDate=${selectedDate}&endDate=${selectedDate}`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        }).then(res => res.json())
+      ]);
+
+      if (peopleRes.success) {
+        const newPeople = peopleRes.data;
+        if (currentRole === 'clients') {
+          // Filter out inactive on client as well, just in case
+          const activeOrExpired = newPeople.filter(p => {
+            const statusVal = (p.status || '').toLowerCase();
+            const membershipStatusVal = (p.membershipStatus || '').toLowerCase();
+            const isInactive =
+              statusVal.includes('inact') || membershipStatusVal.includes('inact') ||
+              statusVal.includes('deact') || membershipStatusVal.includes('deact') ||
+              statusVal.includes('exit')  || membershipStatusVal.includes('exit');
+            if (isInactive) return false;
+            return statusVal === 'active' || statusVal === 'expired';
+          });
+          setPeople(prev => [...prev, ...activeOrExpired]);
+          setHasMore(peopleRes.page < peopleRes.pages);
+        } else {
+          setPeople(prev => [...prev, ...newPeople]);
+          setHasMore(peopleRes.page < peopleRes.pages);
+        }
+        setPage(nextPage);
+      }
+
+      if (attRes.success && attRes.data) {
+        const map = { ...statusMap };
+        attRes.data.forEach(record => {
+          if (record.member?._id) map[record.member._id] = record;
+        });
+        setStatusMap(map);
+      }
+    } catch (err) {
+      console.error('Failed to load more people', err);
+    } finally {
+      setLoadingMore(false);
+    }
+  };
+
+  useEffect(() => {
+    if (inView) {
+      loadMorePeople();
+    }
+  }, [inView]);
   const [expandedAttendanceId, setExpandedAttendanceId] = useState(null);
 
   // Calendar Modal States
@@ -1023,6 +1096,13 @@ export default function AttendanceClient({ initialPeople, initialAttendance, rol
                 );
               })}
             </div>
+            
+            {/* Infinite Scroll Trigger */}
+            {hasMore && (
+              <div ref={loadMoreRef} className="py-6 flex justify-center w-full">
+                <Loader size="sm" />
+              </div>
+            )}
           </>
         )}
       </div>

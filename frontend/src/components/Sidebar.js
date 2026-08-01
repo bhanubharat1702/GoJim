@@ -125,7 +125,7 @@ export default function Sidebar() {
                       <ChevronDown size={16} className={`transition-transform duration-300 ${isOpen ? 'rotate-180' : ''}`} />
                     </div>
                   ) : (
-                    <Link href={item.href} className="flex-1 no-underline text-inherit">
+                    <Link href={item.href} prefetch={false} className="flex-1 no-underline text-inherit">
                       {item.label}
                     </Link>
                   )}
@@ -150,7 +150,7 @@ export default function Sidebar() {
                        })();
                       
                       return (
-                        <Link key={sub.href} href={sub.href}
+                        <Link key={sub.href} href={sub.href} prefetch={false}
                           className={`px-4 py-2.5 rounded-xl text-[13px] font-medium transition-all no-underline
                             ${isSubActive 
                               ? 'bg-white text-[#212121] shadow-inner font-bold' 

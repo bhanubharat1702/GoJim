@@ -225,10 +225,10 @@ export default function TopNav({ broadcast, setBroadcast }) {
   };
 
   useEffect(() => {
-    fetchNotifications();
-    const interval = setInterval(fetchNotifications, 45000);
-    return () => clearInterval(interval);
-  }, []);
+    if (isNotificationDrawerOpen) {
+      fetchNotifications();
+    }
+  }, [isNotificationDrawerOpen]);
 
   const getClusteredNotifications = (rawAlerts) => {
     const groups = {
@@ -751,7 +751,7 @@ export default function TopNav({ broadcast, setBroadcast }) {
         {/* Desktop View Navbar (Identical to original desktop layout) */}
         <div className="hidden md:flex w-full max-w-7xl items-center justify-between">
           <div className="flex items-center gap-2.5">
-            <Link href="/dashboard" className="flex items-center gap-2.5 no-underline group">
+            <Link prefetch={false} href="/dashboard" className="flex items-center gap-2.5 no-underline group">
               <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-gradient-to-br from-accent to-accent-dark flex items-center justify-center text-base sm:text-lg shadow-lg">
                 💪
               </div>
@@ -787,7 +787,7 @@ export default function TopNav({ broadcast, setBroadcast }) {
                         <ChevronDown size={14} className={`transition-transform duration-300 ${isSubOpen ? 'rotate-180' : ''}`} />
                       </>
                     ) : (
-                      <Link href={item.href} className="text-inherit no-underline">
+                      <Link prefetch={false} href={item.href} className="text-inherit no-underline">
                         {item.label}
                       </Link>
                     )}
@@ -813,7 +813,7 @@ export default function TopNav({ broadcast, setBroadcast }) {
                           return true;
                         })();
                         return (
-                          <Link key={sub.href} href={sub.href}
+                          <Link prefetch={false} key={sub.href} href={sub.href}
                             onClick={() => setOpenSubMenu(null)}
                             className={`px-4 py-2.5 rounded-xl text-[12px] font-bold transition-all no-underline whitespace-nowrap
                               ${isSubActive

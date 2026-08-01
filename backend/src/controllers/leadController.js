@@ -4,13 +4,22 @@ const mongoose = require('mongoose');
 
 exports.getLeads = async (req, res) => {
   try {
-    const { status, search, sort, page = 1, limit = 20 } = req.query;
+    const { status, search, sort, page = 1, limit = 20, startDate, endDate, filter } = req.query;
     const query = { gymOwner: req.gymOwnerId };
-    if (status) {
+    
+    if (filter === 'stale') {
+      const startOfCurrentMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
+      query.createdAt = { $lt: startOfCurrentMonth };
+      query.status = { $nin: ['joined', 'lost'] };
+    } else if (filter === 'pending_followups') {
+      const todayEnd = new Date(); todayEnd.setHours(23, 59, 59, 999);
+      query.followUpDate = { $lte: todayEnd, $ne: null };
+      query.status = { $nin: ['joined', 'lost'] };
+      // if todayOnly is needed, the client can pass a specific startDate
+    } else if (status) {
       if (status === 'follow_up') {
         const startOfToday = new Date();
         startOfToday.setHours(0, 0, 0, 0);
-        // Offset 12 hours to safely include today's dates in all timezones
         startOfToday.setHours(startOfToday.getHours() - 12);
         query.status = { $nin: ['joined', 'lost'] };
         query.followUpDate = { $gte: startOfToday };
@@ -18,6 +27,13 @@ exports.getLeads = async (req, res) => {
         query.status = status;
       }
     }
+
+    if (startDate || endDate) {
+      query.createdAt = query.createdAt || {};
+      if (startDate) query.createdAt.$gte = new Date(startDate);
+      if (endDate) query.createdAt.$lte = new Date(endDate);
+    }
+
     if (search) {
       query.$or = [
         { name: { $regex: search, $options: 'i' } },
@@ -35,7 +51,15 @@ exports.getLeads = async (req, res) => {
       .sort(sort || { createdAt: -1 })
       .skip((page - 1) * limit).limit(parseInt(limit));
 
-    res.status(200).json({ success: true, count: leads.length, total, data: leads });
+    res.status(200).json({ 
+      success: true, 
+      count: leads.length, 
+      total, 
+      pages: Math.ceil(total / limit),
+      page: parseInt(page),
+      hasMore: (page * limit) < total,
+      data: leads 
+    });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
@@ -162,6 +186,45 @@ exports.getFollowUps = async (req, res) => {
 
 exports.getLeadStats = async (req, res) => {
   try {
+    const { status, search, startDate, endDate, filter } = req.query;
+    const baseQuery = { gymOwner: req.gymOwnerId };
+    
+    if (filter === 'stale') {
+      const startOfCurrentMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
+      baseQuery.createdAt = { $lt: startOfCurrentMonth };
+      baseQuery.status = { $nin: ['joined', 'lost'] };
+    } else if (filter === 'pending_followups') {
+      const todayEnd = new Date(); todayEnd.setHours(23, 59, 59, 999);
+      baseQuery.followUpDate = { $lte: todayEnd, $ne: null };
+      baseQuery.status = { $nin: ['joined', 'lost'] };
+    } else if (status) {
+      if (status === 'follow_up') {
+        const startOfToday = new Date();
+        startOfToday.setHours(0, 0, 0, 0);
+        startOfToday.setHours(startOfToday.getHours() - 12);
+        baseQuery.status = { $nin: ['joined', 'lost'] };
+        baseQuery.followUpDate = { $gte: startOfToday };
+      } else {
+        baseQuery.status = status;
+      }
+    }
+
+    if (startDate || endDate) {
+      baseQuery.createdAt = baseQuery.createdAt || {};
+      if (startDate) baseQuery.createdAt.$gte = new Date(startDate);
+      if (endDate) baseQuery.createdAt.$lte = new Date(endDate);
+    }
+
+    if (search) {
+      baseQuery.$or = [
+        { name: { $regex: search, $options: 'i' } },
+        { phone: { $regex: search, $options: 'i' } }
+      ];
+      if (mongoose.Types.ObjectId.isValid(search)) {
+        baseQuery.$or.push({ _id: search });
+      }
+    }
+
     const now = new Date();
     const startOfToday = new Date(); startOfToday.setHours(0, 0, 0, 0);
     const endOfToday = new Date(); endOfToday.setHours(23, 59, 59, 999);
@@ -169,8 +232,6 @@ exports.getLeadStats = async (req, res) => {
     const currentMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
     const lastMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
     const lastMonthEnd = new Date(now.getFullYear(), now.getMonth(), 0);
-
-    const gymOwnerObjId = new mongoose.Types.ObjectId(req.gymOwnerId);
 
     const [
       statusStats,
@@ -181,36 +242,49 @@ exports.getLeadStats = async (req, res) => {
       followUpCount,
       followUpsDueToday,
       sourceStats,
-      lostThisWeek
+      lostThisWeek,
+      revenueData,
+      planData
     ] = await Promise.all([
       Lead.aggregate([
-        { $match: { gymOwner: gymOwnerObjId } },
+        { $match: baseQuery },
         { $group: { _id: '$status', count: { $sum: 1 } } }
       ]),
-      Lead.countDocuments({ gymOwner: req.gymOwnerId }),
-      Lead.countDocuments({ gymOwner: req.gymOwnerId, createdAt: { $gte: sevenDaysAgo } }),
-      Lead.countDocuments({ gymOwner: req.gymOwnerId, createdAt: { $gte: currentMonthStart } }),
-      Lead.countDocuments({ gymOwner: req.gymOwnerId, createdAt: { $gte: lastMonthStart, $lte: lastMonthEnd } }),
+      Lead.countDocuments(baseQuery),
+      Lead.countDocuments({ ...baseQuery, createdAt: { $gte: sevenDaysAgo } }),
+      Lead.countDocuments({ ...baseQuery, createdAt: { $gte: currentMonthStart } }),
+      Lead.countDocuments({ ...baseQuery, createdAt: { $gte: lastMonthStart, $lte: lastMonthEnd } }),
       Lead.countDocuments({
-        gymOwner: req.gymOwnerId,
+        ...baseQuery,
         status: { $nin: ['joined', 'lost'] },
         followUpDate: { $gte: new Date(startOfToday.getTime() - 12 * 60 * 60 * 1000) }
       }),
       Lead.countDocuments({
-        gymOwner: req.gymOwnerId,
+        ...baseQuery,
         status: { $nin: ['joined', 'lost'] },
         followUpDate: { $gte: startOfToday, $lte: endOfToday }
       }),
       Lead.aggregate([
-        { $match: { gymOwner: gymOwnerObjId } },
+        { $match: baseQuery },
         { $group: { _id: '$source', count: { $sum: 1 } } },
         { $sort: { count: -1 } },
         { $limit: 1 }
       ]),
-      Lead.countDocuments({ gymOwner: req.gymOwnerId, status: 'lost', updatedAt: { $gte: sevenDaysAgo } })
+      Lead.countDocuments({ ...baseQuery, status: 'lost', updatedAt: { $gte: sevenDaysAgo } }),
+      // Revenue potential sum
+      Lead.aggregate([
+        { $match: { ...baseQuery, status: { $in: ['interested', 'trial', 'contacted'] } } },
+        { $group: { _id: null, totalRevenue: { $sum: { $toDouble: "$planAmount" } } } }
+      ]),
+      // Most interested plan
+      Lead.aggregate([
+        { $match: { ...baseQuery, interestedPlan: { $ne: 'undecided' } } },
+        { $group: { _id: '$interestedPlan', count: { $sum: 1 } } },
+        { $sort: { count: -1 } },
+        { $limit: 1 }
+      ])
     ]);
 
-    // Calculate growth
     let growth = 0;
     if (lastMonth > 0) {
       growth = Math.round(((thisMonth - lastMonth) / lastMonth) * 100);
@@ -218,13 +292,22 @@ exports.getLeadStats = async (req, res) => {
       growth = 100;
     }
 
-    // Calculate conversion rate
     const joinedCount = statusStats.find(s => s._id === 'joined')?.count || 0;
     const conversionRate = total > 0 ? Math.round((joinedCount / total) * 100) : 0;
-
-    // Top source
     const topSource = sourceStats[0] ? sourceStats[0]._id : 'N/A';
     const topSourceCount = sourceStats[0] ? sourceStats[0].count : 0;
+    
+    const potentialRevenue = revenueData[0]?.totalRevenue || 0;
+    let potentialRevenueFormatted = '₹0';
+    if (potentialRevenue >= 1000) {
+      potentialRevenueFormatted = `₹${(potentialRevenue / 1000).toFixed(1).replace(/\.0$/, '')}k`;
+    } else {
+      potentialRevenueFormatted = `₹${potentialRevenue}`;
+    }
+
+    const hotLeads = statusStats.find(s => s._id === 'interested')?.count || 0 + (statusStats.find(s => s._id === 'trial')?.count || 0);
+    const mostInterestedPlan = planData[0] ? planData[0]._id : 'N/A';
+    const formattedMostInterestedPlan = mostInterestedPlan.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
 
     res.status(200).json({
       success: true,
@@ -242,7 +325,10 @@ exports.getLeadStats = async (req, res) => {
         lostCount: statusStats.find(s => s._id === 'lost')?.count || 0,
         lostThisWeek,
         topSource,
-        topSourceCount
+        topSourceCount,
+        potentialRevenueFormatted,
+        hotLeads,
+        formattedMostInterestedPlan
       }
     });
   } catch (error) {

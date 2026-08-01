@@ -39,14 +39,11 @@ export default function RedesignedNotificationCenter({ initialMembers, initialLe
     }
   };
 
-  const isInitialMount = useRef(true);
   useEffect(() => {
-    if (isInitialMount.current) {
-      isInitialMount.current = false;
-      if (initialMembers && initialLeads) return;
+    if (!initialMembers || !initialLeads) {
+      loadData();
     }
-    loadData();
-  }, []);
+  }, [initialMembers, initialLeads]);
 
   // Compute suggested alerts segment list
   const alertsData = useMemo(() => {

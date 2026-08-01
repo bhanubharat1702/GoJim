@@ -9,7 +9,7 @@ const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001/api';
 const getCachedMembers = unstable_cache(
   async (token) => {
     try {
-      const res = await fetch(`${baseUrl}/members?limit=1000`, {
+      const res = await fetch(`${baseUrl}/members?limit=100`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       return res.ok ? await res.json() : { success: false, data: [] };

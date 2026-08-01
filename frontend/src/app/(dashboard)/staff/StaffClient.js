@@ -55,14 +55,6 @@ export default function StaffClient({ initialStaff, initialExpenses }) {
     return [...filtered, 'Other'];
   }, [user?.staffRoles]);
 
-  // Dynamically fetch the latest user settings/slots on mount to ensure fresh synchronization
-  useEffect(() => {
-    authApi.getMe().then(res => {
-      if (res.success && res.user && updateUser) {
-        updateUser(res.user);
-      }
-    }).catch(err => console.error('Failed to sync timeSlots in staff page:', err));
-  }, []);
   const [deleteConfirmState, setDeleteConfirmState] = useState(null);
   const [showModal, setShowModal] = useState(false);
   const [editingStaff, setEditingStaff] = useState(null);
@@ -372,12 +364,11 @@ export default function StaffClient({ initialStaff, initialExpenses }) {
     return () => clearTimeout(timer);
   }, [search]);
 
-  const isInitialMount = useRef(true);
+  const initialDeps = useRef(JSON.stringify([debouncedSearch, filterRole, sortBy]));
   useEffect(() => {
-    if (isInitialMount.current) {
-      isInitialMount.current = false;
-      if (initialStaff && initialStaff.length > 0) return;
-    }
+    const currentDeps = JSON.stringify([debouncedSearch, filterRole, sortBy]);
+    if (currentDeps === initialDeps.current) return;
+    
     fetchStaff();
   }, [debouncedSearch, filterRole, sortBy]);
 

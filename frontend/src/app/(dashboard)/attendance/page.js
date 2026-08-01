@@ -12,11 +12,11 @@ const getCachedPeople = unstable_cache(
     let endpoint = '';
     
     if (role === 'clients') {
-      endpoint = '/members?limit=1000&excludeInactive=true';
+      endpoint = '/members?limit=50&page=1&excludeInactive=true';
     } else if (role === 'trainers') {
-      endpoint = '/trainers?limit=1000';
+      endpoint = '/trainers?limit=50&page=1';
     } else if (role === 'staff') {
-      endpoint = '/staff?limit=1000';
+      endpoint = '/staff?limit=50&page=1';
     }
 
     try {

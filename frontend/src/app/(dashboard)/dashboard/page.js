@@ -72,54 +72,6 @@ const getCachedExpenses = unstable_cache(
   { revalidate: 15, tags: ['expenses'] }
 );
 
-const getCachedLeads = unstable_cache(
-  async (token) => {
-    try {
-      const res = await fetch(`${baseUrl}/leads?limit=200`, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      return res.ok ? await res.json() : { success: false, data: [] };
-    } catch (err) {
-      console.error('getCachedLeads error:', err);
-      return { success: false, data: [] };
-    }
-  },
-  ['dashboard-leads'],
-  { revalidate: 15, tags: ['leads'] }
-);
-
-const getCachedMembers = unstable_cache(
-  async (token) => {
-    try {
-      const res = await fetch(`${baseUrl}/members?limit=500`, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      return res.ok ? await res.json() : { success: false, data: [] };
-    } catch (err) {
-      console.error('getCachedMembers error:', err);
-      return { success: false, data: [] };
-    }
-  },
-  ['dashboard-members'],
-  { revalidate: 15, tags: ['members'] }
-);
-
-const getCachedAttendance = unstable_cache(
-  async (thirtyDaysAgoStr, token) => {
-    try {
-      const res = await fetch(`${baseUrl}/attendance?startDate=${thirtyDaysAgoStr}&limit=500`, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      return res.ok ? await res.json() : { success: false, data: [] };
-    } catch (err) {
-      console.error('getCachedAttendance error:', err);
-      return { success: false, data: [] };
-    }
-  },
-  ['dashboard-attendance'],
-  { revalidate: 15, tags: ['attendance'] }
-);
-
 const getCachedTableMembers = unstable_cache(
   async (token) => {
     try {
@@ -128,12 +80,27 @@ const getCachedTableMembers = unstable_cache(
       });
       return res.ok ? await res.json() : { success: false, data: [] };
     } catch (err) {
-      console.error('getCachedTableMembers error:', err);
       return { success: false, data: [] };
     }
   },
   ['dashboard-table-members'],
-  { revalidate: 15, tags: ['members'] }
+  { revalidate: 60, tags: ['members'] }
+);
+
+const getCachedTodayLeads = unstable_cache(
+  async (token) => {
+    try {
+      const today = new Date().toISOString().split('T')[0];
+      const res = await fetch(`${baseUrl}/leads?limit=50&followUpDate=${today}`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      return res.ok ? await res.json() : { success: false, data: [] };
+    } catch (err) {
+      return { success: false, data: [] };
+    }
+  },
+  ['dashboard-today-leads'],
+  { revalidate: 60, tags: ['leads'] }
 );
 
 // Heavy Data Calculation Helpers (Executed Server-Side)
@@ -330,7 +297,7 @@ function calculateDailyProfitsThisMonth(payments, expenses) {
   return days;
 }
 
-function calculateGymInsights(incomeChartData, expenses, inactiveCount, expiringTodayCount, trainers, allMembers, allLeads, allAttendance) {
+function calculateGymInsights(incomeChartData, expenses, stats) {
   const list = [];
   const now = new Date();
   
@@ -341,16 +308,12 @@ function calculateGymInsights(incomeChartData, expenses, inactiveCount, expiring
     text: `Welcome back, Gym Owner! Have a great day managing your gym today.`
   });
 
-  const isBrandNewGym = allMembers.length === 0 && trainers.length === 0 && expenses.length === 0 && allLeads.length === 0;
+  const isBrandNewGym = (stats.totalMembers === 0 && stats.totalTrainers === 0 && expenses.length === 0 && stats.totalLeads === 0);
   if (isBrandNewGym) {
     return list;
   }
 
-  const activeMembersCount = allMembers.filter(m => m.status === 'active').length;
-  const ptTrainers = trainers.filter(t => t.trainerType === 'PT Trainer' || t.trainerType === 'PT + Trainer');
-  const activeLeadsList = allLeads.filter(l => l.status !== 'joined' && l.status !== 'lost');
-
-  if (allMembers.length === 0) {
+  if (stats.totalMembers === 0) {
     list.push({
       id: 'setup-members',
       type: 'target',
@@ -358,7 +321,7 @@ function calculateGymInsights(incomeChartData, expenses, inactiveCount, expiring
     });
   }
 
-  if (trainers.length === 0) {
+  if (stats.totalTrainers === 0) {
     list.push({
       id: 'setup-trainers',
       type: 'info',
@@ -374,52 +337,24 @@ function calculateGymInsights(incomeChartData, expenses, inactiveCount, expiring
     });
   }
 
-  if (allLeads.length === 0) {
-    list.push({
-      id: 'setup-leads',
-      type: 'target',
-      text: `Setup Guide: You can track prospective gym inquiries in the "Leads" tab. Add them to set up follow-up reminders.`
-    });
-  }
-
-  const fourteenDaysAgo = new Date();
-  fourteenDaysAgo.setDate(fourteenDaysAgo.getDate() - 14);
-
-  const highRiskMembers = allMembers.filter(m => {
-    if (m.status !== 'active') return false;
-    if (!m.lastAttendance) return true;
-    const lastAtt = new Date(m.lastAttendance);
-    return lastAtt <= fourteenDaysAgo;
-  });
-
-  if (activeMembersCount > 0 && highRiskMembers.length > 0) {
-    const lostRevenueRisk = highRiskMembers.reduce((sum, m) => sum + (m.planAmount || 0), 0);
+  if (stats.inactiveMembers > 0) {
     list.push({
       id: 'churn-prediction',
       type: 'danger',
-      text: `Retention Alert: ${highRiskMembers.length} active members haven't visited in over 2 weeks. Reaching out to them can help save up to ₹${lostRevenueRisk.toLocaleString()} in monthly fees.`
+      text: `Retention Alert: ${stats.inactiveMembers} active members haven't visited in over 2 weeks. Reaching out to them can help save your recurring revenue.`
     });
   }
 
-  const totalConvertedLeads = allLeads.filter(l => l.status === 'joined').length;
-  const totalClosedLeads = allLeads.filter(l => l.status === 'joined' || l.status === 'lost').length;
-  const conversionRate = totalClosedLeads > 0 ? (totalConvertedLeads / totalClosedLeads) : 0.3;
-  const activeLeadsCount = activeLeadsList.length;
-
+  const activeLeadsCount = stats.totalLeads || 0; // approximation if we don't have exact active leads
   if (activeLeadsCount > 0) {
-    const avgMembershipAmount = allMembers.length > 0
-      ? allMembers.reduce((sum, m) => sum + (m.planAmount || 0), 0) / allMembers.length
-      : 2500;
-    const potentialSales = activeLeadsCount * avgMembershipAmount * conversionRate;
     list.push({
       id: 'conversion-prediction',
       type: 'target',
-      text: `Sales Opportunity: You have ${activeLeadsCount} active inquiries. Based on your sales history, converting them could bring in around ₹${Math.round(potentialSales).toLocaleString()} in new payments.`
+      text: `Sales Opportunity: Keep following up with your active leads to boost this month's revenue.`
     });
   }
 
-  const activeMembers = allMembers.filter(m => m.status === 'active');
-  const monthlyRecurringRevenue = activeMembers.reduce((sum, m) => sum + (m.planAmount || 0), 0);
+  const monthlyRecurringRevenue = stats.monthlyRevenue || 0;
   
   const currMonthIdx = now.getMonth();
   const currYear = now.getFullYear();
@@ -454,143 +389,13 @@ function calculateGymInsights(incomeChartData, expenses, inactiveCount, expiring
       });
     } else {
       const deficit = baselineExpenses - monthlyRecurringRevenue;
-      const avgMembershipAmount = allMembers.length > 0
-        ? allMembers.reduce((sum, m) => sum + (m.planAmount || 0), 0) / allMembers.length
-        : 2500;
-      const requiredSalesCount = Math.ceil(deficit / avgMembershipAmount);
       list.push({
         id: 'financial-runway',
         type: 'warning',
-        text: `Alert: Your monthly membership fees (₹${Math.round(monthlyRecurringRevenue).toLocaleString()}) are lower than your average monthly expenses (₹${Math.round(baselineExpenses).toLocaleString()}) by ₹${Math.round(deficit).toLocaleString()}. Try to get at least ${requiredSalesCount} new member(s) to cover the costs.`
+        text: `Alert: Your monthly membership fees (₹${Math.round(monthlyRecurringRevenue).toLocaleString()}) are lower than your average monthly expenses (₹${Math.round(baselineExpenses).toLocaleString()}) by ₹${Math.round(deficit).toLocaleString()}.`
       });
     }
   }
-
-  if (baselineExpenses > 0 && thisMonthExpenseSum > baselineExpenses && expenses.length > 0) {
-    const excess = thisMonthExpenseSum - baselineExpenses;
-    list.push({
-      id: 'expense-prediction',
-      type: 'warning',
-      text: `Warning: This month's expenses (₹${thisMonthExpenseSum.toLocaleString()}) are ₹${Math.round(excess).toLocaleString()} higher than your usual monthly average. Double-check recent purchases.`
-    });
-  }
-
-  let peakWeekday = '';
-  let peakHourStr = '';
-  
-  if (allAttendance && allAttendance.length > 0) {
-    const weekdays = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-    const weekdayCounts = {};
-    const hourCounts = {};
-    
-    allAttendance.forEach(att => {
-      if (!att.checkInTime) return;
-      const checkIn = new Date(att.checkInTime);
-      if (isNaN(checkIn.getTime())) return;
-      
-      const dayName = weekdays[checkIn.getDay()];
-      weekdayCounts[dayName] = (weekdayCounts[dayName] || 0) + 1;
-      
-      const hour = checkIn.getHours();
-      hourCounts[hour] = (hourCounts[hour] || 0) + 1;
-    });
-    
-    let maxDayCount = -1;
-    Object.keys(weekdayCounts).forEach(day => {
-      if (weekdayCounts[day] > maxDayCount) {
-        maxDayCount = weekdayCounts[day];
-        peakWeekday = day;
-      }
-    });
-    
-    let maxHourCount = -1;
-    let peakHour = -1;
-    Object.keys(hourCounts).forEach(h => {
-      const hourNum = parseInt(h);
-      if (hourCounts[hourNum] > maxHourCount) {
-        maxHourCount = hourCounts[hourNum];
-        peakHour = hourNum;
-      }
-    });
-    
-    if (peakHour !== -1) {
-      const ampm = peakHour >= 12 ? 'PM' : 'AM';
-      const displayHour = peakHour % 12 || 12;
-      peakHourStr = `${displayHour}:00 ${ampm}`;
-    }
-  }
-
-  if (peakWeekday && peakHourStr) {
-    list.push({
-      id: 'attendance-prediction',
-      type: 'info',
-      text: `Tip: Check-in records show that ${peakWeekday}s are your busiest days, with peak check-ins happening around ${peakHourStr}. Ask your floor trainers to be active then.`
-    });
-  } else {
-    const weekdays = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-    const currentDayOfWeek = weekdays[now.getDay()];
-    if (currentDayOfWeek === 'Monday' || currentDayOfWeek === 'Tuesday') {
-      list.push({
-        id: 'attendance-prediction',
-        type: 'info',
-        text: `Tip: ${currentDayOfWeek}s are usually the busiest days. Ask your trainers to be on the floor during peak hours (6 PM - 9 PM) to help members.`
-      });
-    } else {
-      list.push({
-        id: 'attendance-prediction',
-        type: 'info',
-        text: `Tip: Weekend attendance is usually lower. Run a quick weekend workout challenge to get members to visit!`
-      });
-    }
-  }
-
-  if (incomeChartData && incomeChartData.trend === 'down' && expenses.length > 0) {
-    if (thisMonthExpenses.length > 0) {
-      const sortedExp = [...thisMonthExpenses].sort((a, b) => (b.amount || 0) - (a.amount || 0));
-      const topExp = sortedExp[0];
-      list.push({
-        id: 'leakage',
-        type: 'warning',
-        text: `Alert: Profits are down by ₹${incomeChartData.diff.toLocaleString()} compared to last month. Notice: Your biggest expense this month is "${topExp.title}" (₹${topExp.amount.toLocaleString()}).`
-      });
-    } else {
-      list.push({
-        id: 'leakage-general',
-        type: 'warning',
-        text: `Alert: Profits are down by ₹${incomeChartData.diff.toLocaleString()} compared to last month. Take a look at your operational spending.`
-      });
-    }
-  }
-
-  if (expiringTodayCount > 0) {
-    list.push({
-      id: 'expiring',
-      type: 'warning',
-      text: `Reminder: ${expiringTodayCount} client memberships expire today. Call them to renew their memberships.`
-    });
-  }
-
-  if (ptTrainers.length > 0) {
-    const assignedTrainerIds = new Set(
-      allMembers
-        .map(m => m.assignedTrainer?._id || m.assignedTrainer)
-        .filter(Boolean)
-        .map(id => id.toString())
-    );
-    const unassignedPTCount = ptTrainers.filter(t => {
-      const idStr = (t._id || t.id)?.toString();
-      return !assignedTrainerIds.has(idStr);
-    }).length;
-
-    if (unassignedPTCount > 0) {
-      list.push({
-        id: 'weakness-trainers',
-        type: 'info',
-        text: `Staff Check: ${unassignedPTCount} personal trainer(s) currently have no clients assigned. Assign them clients to utilize their shifts.`
-      });
-    }
-  }
-
   return list;
 }
 
@@ -609,17 +414,13 @@ async function DashboardServerRoster({ token }) {
     paymentsRes,
     expensesRes,
     leadsRes,
-    membersRes,
-    attendanceRes,
     tableMembersRes
   ] = await Promise.all([
     getCachedDashboard(token),
     getCachedTrainers(token),
     getCachedPayments(startOfPrevMonthStr, token),
     getCachedExpenses(startOfPrevMonthStr, token),
-    getCachedLeads(token),
-    getCachedMembers(token),
-    getCachedAttendance(thirtyDaysAgoStr, token),
+    getCachedTodayLeads(token),
     getCachedTableMembers(token)
   ]);
 
@@ -628,21 +429,14 @@ async function DashboardServerRoster({ token }) {
   const trainers = trainRes.success ? trainRes.data : [];
   const payments = paymentsRes.success ? paymentsRes.data : [];
   const expenses = expensesRes.success ? expensesRes.data : [];
-  const allLeads = leadsRes.success ? leadsRes.data : [];
-  const allMembers = membersRes.success ? membersRes.data : [];
-  const allAttendance = attendanceRes.success ? attendanceRes.data : [];
+  const todayLeads = leadsRes.success ? leadsRes.data : [];
   const initialTableMembers = tableMembersRes.success ? tableMembersRes.data : [];
 
   // Notifications criteria
   const expiringTodayCount = stats.expiringPlans || 0;
   const inactiveCount = stats.inactiveMembers || 0;
 
-  const todayStr = new Date().toDateString();
-  const todaysFollowupCount = allLeads.filter(l => {
-    if (!l.followUpDate) return false;
-    if (l.status === 'joined' || l.status === 'lost') return false;
-    return new Date(l.followUpDate).toDateString() === todayStr;
-  }).length;
+  const todaysFollowupCount = todayLeads.length;
 
   // Pre-calculate expensive items on the server
   const incomeChartData = calculateIncomeChartData(payments, expenses);
@@ -651,12 +445,7 @@ async function DashboardServerRoster({ token }) {
   const gymInsights = calculateGymInsights(
     incomeChartData,
     expenses,
-    inactiveCount,
-    expiringTodayCount,
-    trainers,
-    allMembers,
-    allLeads,
-    allAttendance
+    stats
   );
 
   return (
@@ -665,10 +454,10 @@ async function DashboardServerRoster({ token }) {
       recentMembers={data.recentMembers || []}
       recentPayments={data.recentPayments || []}
       attendanceTrend={data.attendanceTrend || []}
-      trainers={trainers}
-      allMembers={allMembers}
-      allLeads={allLeads}
-      allAttendance={allAttendance}
+      trainers={[]}
+      allMembers={[]}
+      allLeads={[]}
+      allAttendance={[]}
       payments={payments}
       expenses={expenses}
       incomeChartData={incomeChartData}

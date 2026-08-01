@@ -41,7 +41,7 @@ const isTrainerCompatible = (trainer, memberTimeSlotName, timeSlots) => {
   }
 };
 
-export default function LeadsClient({ initialLeads, initialStats, initialPlans, initialTrainers }) {
+export default function LeadsClient({ initialLeads, initialHasMore, initialStats, initialPlans, initialTrainers }) {
   const { user, updateUser } = useAuth();
   const searchParams = useSearchParams();
   const filterParam = searchParams.get('filter') || '';
@@ -49,7 +49,10 @@ export default function LeadsClient({ initialLeads, initialStats, initialPlans, 
   const [filterTodayOnly, setFilterTodayOnly] = useState(todayParam);
 
   const [leads, setLeads] = useState(initialLeads || []);
-  const [loading, setLoading] = useState(!initialLeads);
+  const [hasMore, setHasMore] = useState(initialHasMore || false);
+  const [page, setPage] = useState(1);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState(filterParam);
   const [stats, setStats] = useState(initialStats || null);
@@ -67,14 +70,6 @@ export default function LeadsClient({ initialLeads, initialStats, initialPlans, 
 
   const previewId = searchParams.get('preview');
 
-  // Dynamically fetch the latest user settings/slots on mount to ensure fresh synchronization
-  useEffect(() => {
-    authApi.getMe().then(res => {
-      if (res.success && res.user && updateUser) {
-        updateUser(res.user);
-      }
-    }).catch(err => console.error('Failed to sync timeSlots in leads page:', err));
-  }, []);
 
 
 
@@ -146,7 +141,6 @@ export default function LeadsClient({ initialLeads, initialStats, initialPlans, 
   }, [user, selectedUpi]);
   const [showDetail, setShowDetail] = useState(null);
   const [enrichedDetail, setEnrichedDetail] = useState(null);
-  const [pagination, setPagination] = useState({ page: 1, pages: 1, total: 0 });
 
   useEffect(() => {
     if (showDetail) {
@@ -204,237 +198,109 @@ export default function LeadsClient({ initialLeads, initialStats, initialPlans, 
     return 'All Time';
   };
 
-  // Dynamic stats calculation matching current date filters and search
-  const dynamicStats = (() => {
-    const baseLeads = leads.filter(l => {
-      if (dateFilterType === 'all') return true;
-      if (!l.createdAt) return false;
-
-      const leadDate = new Date(l.createdAt);
-
-      if (dateFilterType === 'date') {
-        if (!selectedDate) return true;
-        const targetDate = parseLocalDate(selectedDate);
-        return leadDate.getFullYear() === targetDate.getFullYear() &&
-          leadDate.getMonth() === targetDate.getMonth() &&
-          leadDate.getDate() === targetDate.getDate();
-      }
-
-      if (dateFilterType === 'month') {
-        const targetMonth = parseInt(selectedMonth);
-        const targetYear = parseInt(selectedYear);
-        return leadDate.getFullYear() === targetYear &&
-          leadDate.getMonth() === targetMonth;
-      }
-
-      if (dateFilterType === 'year') {
-        const targetYear = parseInt(selectedYear);
-        return leadDate.getFullYear() === targetYear;
-      }
-
-      if (dateFilterType === 'range') {
-        const start = parseLocalDate(selectedRangeStart);
-        if (start) start.setHours(0, 0, 0, 0);
-
-        const end = parseLocalDate(selectedRangeEnd);
-        if (end) end.setHours(23, 59, 59, 999);
-
-        if (start && end) {
-          return leadDate >= start && leadDate <= end;
-        } else if (start) {
-          return leadDate >= start;
-        } else if (end) {
-          return leadDate <= end;
-        }
-        return true;
-      }
-
-      return true;
-    });
-
-    const total = baseLeads.length;
-    const joinedCount = baseLeads.filter(l => l.status === 'joined').length;
-    const lostCount = baseLeads.filter(l => l.status === 'lost').length;
-    const conversionRate = total > 0 ? Math.round((joinedCount / total) * 100) : 0;
-
-    const sevenDaysAgo = new Date();
-    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-    const addedThisWeek = baseLeads.filter(l => new Date(l.createdAt) >= sevenDaysAgo).length;
-    const lostThisWeek = baseLeads.filter(l => l.status === 'lost' && new Date(l.updatedAt || l.createdAt) >= sevenDaysAgo).length;
-
-    // Top Source calculation
-    const sourceCounts = {};
-    baseLeads.forEach(l => {
-      if (l.source) {
-        sourceCounts[l.source] = (sourceCounts[l.source] || 0) + 1;
-      }
-    });
-    let topSource = 'N/A';
-    let topSourceCount = 0;
-    Object.entries(sourceCounts).forEach(([source, count]) => {
-      if (count > topSourceCount) {
-        topSource = source;
-        topSourceCount = count;
-      }
-    });
-
-    const now = new Date();
-    const currentMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
-    const thisMonth = baseLeads.filter(l => new Date(l.createdAt) >= currentMonthStart).length;
-
-    const lastMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-    const lastMonthEnd = new Date(now.getFullYear(), now.getMonth(), 0);
-    const lastMonthCount = baseLeads.filter(l => {
-      const d = new Date(l.createdAt);
-      return d >= lastMonthStart && d <= lastMonthEnd;
-    }).length;
-
-    let growth = 0;
-    if (lastMonthCount > 0) {
-      growth = Math.round(((thisMonth - lastMonthCount) / lastMonthCount) * 100);
-    } else if (thisMonth > 0) {
-      growth = 100;
+  const buildQueryParams = (pageNum = 1) => {
+    const params = new URLSearchParams();
+    params.append('page', pageNum);
+    params.append('limit', 50);
+    if (search) params.append('search', search);
+    if (filter) params.append('filter', filter);
+    
+    if (dateFilterType === 'date' && selectedDate) {
+      params.append('startDate', selectedDate);
+      params.append('endDate', selectedDate);
+    } else if (dateFilterType === 'month') {
+      const year = parseInt(selectedYear);
+      const month = parseInt(selectedMonth);
+      const start = new Date(year, month, 1);
+      const end = new Date(year, month + 1, 0);
+      params.append('startDate', start.toISOString());
+      params.append('endDate', end.toISOString());
+    } else if (dateFilterType === 'year') {
+      const year = parseInt(selectedYear);
+      const start = new Date(year, 0, 1);
+      const end = new Date(year, 11, 31);
+      params.append('startDate', start.toISOString());
+      params.append('endDate', end.toISOString());
+    } else if (dateFilterType === 'range') {
+      if (selectedRangeStart) params.append('startDate', selectedRangeStart);
+      if (selectedRangeEnd) params.append('endDate', selectedRangeEnd);
     }
+    return params.toString();
+  };
 
-    // Follow-ups Priority Calculations
-    const todayEnd = new Date(); todayEnd.setHours(23, 59, 59, 999);
-    const todayStart = new Date(); todayStart.setHours(0, 0, 0, 0);
+  const fetchFilteredLeads = async (pageNum = 1) => {
+    const paramsString = buildQueryParams(pageNum);
+    
+    if (pageNum === 1) setLoading(true);
+    else setLoadingMore(true);
 
-    const followUpsPending = baseLeads.filter(l => {
-      if (!l.followUpDate) return false;
-      return new Date(l.followUpDate) <= todayEnd && l.status !== 'joined' && l.status !== 'lost';
-    }).length;
-
-    const highPriority = baseLeads.filter(l => {
-      return l.status === 'interested' || l.status === 'trial';
-    }).length;
-
-    const missedYesterday = baseLeads.filter(l => {
-      if (!l.followUpDate) return false;
-      return new Date(l.followUpDate) < todayStart && l.status === 'new';
-    }).length;
-
-    // Revenue Potential Card Calculations
-    const potentialRevenue = baseLeads.reduce((sum, l) => {
-      const allowedStatus = ['interested', 'trial', 'contacted'];
-      if (allowedStatus.includes(l.status)) {
-        return sum + (parseInt(l.planAmount) || 0);
+    try {
+      const [leadsRes, statsRes] = await Promise.all([
+        leadsApi.getAll(paramsString),
+        pageNum === 1 ? leadsApi.getStats(paramsString) : Promise.resolve(null)
+      ]);
+      
+      if (leadsRes.success) {
+        if (pageNum === 1) setLeads(leadsRes.data);
+        else setLeads(prev => [...prev, ...leadsRes.data]);
+        
+        setHasMore(leadsRes.hasMore);
+        setPage(leadsRes.page);
       }
-      return sum;
-    }, 0);
-
-    let potentialRevenueFormatted = '₹0';
-    if (potentialRevenue >= 1000) {
-      potentialRevenueFormatted = `₹${(potentialRevenue / 1000).toFixed(1).replace(/\.0$/, '')}k`;
-    } else {
-      potentialRevenueFormatted = `₹${potentialRevenue}`;
+      
+      if (statsRes?.success) {
+        setStats(statsRes.data);
+      }
+    } catch (err) {
+      console.error('Failed to fetch leads', err);
+    } finally {
+      setLoading(false);
+      setLoadingMore(false);
     }
+  };
 
-    const hotLeads = baseLeads.filter(l => l.status === 'interested' || l.status === 'trial').length;
+  const initialDeps = useRef(JSON.stringify([search, filter, dateFilterType, selectedDate, selectedMonth, selectedYear, selectedRangeStart, selectedRangeEnd]));
 
-    const planCounts = {};
-    baseLeads.forEach(l => {
-      if (l.interestedPlan && l.interestedPlan !== 'undecided') {
-        planCounts[l.interestedPlan] = (planCounts[l.interestedPlan] || 0) + 1;
+  useEffect(() => {
+    const currentDeps = JSON.stringify([search, filter, dateFilterType, selectedDate, selectedMonth, selectedYear, selectedRangeStart, selectedRangeEnd]);
+    if (currentDeps === initialDeps.current) return;
+
+    const timer = setTimeout(() => {
+      fetchFilteredLeads(1);
+    }, 500); // 500ms debounce
+    return () => clearTimeout(timer);
+  }, [search, filter, dateFilterType, selectedDate, selectedMonth, selectedYear, selectedRangeStart, selectedRangeEnd]);
+
+  const loadMoreLeads = () => {
+    if (!loadingMore && hasMore) {
+      fetchFilteredLeads(page + 1);
+    }
+  };
+
+  const observerRef = useRef();
+  useEffect(() => {
+    const observer = new IntersectionObserver((entries) => {
+      if (entries[0].isIntersecting && hasMore && !loadingMore) {
+        loadMoreLeads();
       }
-    });
-
-    let mostInterestedPlan = 'N/A';
-    let maxCount = 0;
-    Object.keys(planCounts).forEach(plan => {
-      if (planCounts[plan] > maxCount) {
-        maxCount = planCounts[plan];
-        mostInterestedPlan = plan;
-      }
-    });
-
-    const formattedMostInterestedPlan = mostInterestedPlan.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
-
-    return {
-      total,
-      joinedCount,
-      lostCount,
-      conversionRate,
-      addedThisWeek,
-      lostThisWeek,
-      topSource,
-      topSourceCount,
-      thisMonth,
-      growth,
-      followUpsPending,
-      highPriority,
-      missedYesterday,
-      potentialRevenueFormatted,
-      hotLeads,
-      formattedMostInterestedPlan
+    }, { threshold: 0.1 });
+    
+    const currentRef = observerRef.current;
+    if (currentRef) observer.observe(currentRef);
+    
+    return () => {
+      if (currentRef) observer.unobserve(currentRef);
     };
-  })();
+  }, [hasMore, loadingMore, page]);
 
-  const filteredLeads = leads.filter(l => {
-    if (filter === 'pending_followups') {
-      if (!l.followUpDate || l.status === 'joined' || l.status === 'lost') return false;
-      const fDate = new Date(l.followUpDate);
-      if (filterTodayOnly) {
-        const todayStr = new Date().toDateString();
-        if (fDate.toDateString() !== todayStr) return false;
-      } else {
-        const todayEnd = new Date(); todayEnd.setHours(23, 59, 59, 999);
-        if (fDate > todayEnd) return false;
-      }
-    } else if (filter === 'stale') {
-      if (l.status === 'joined' || l.status === 'lost') return false;
-      const startOfCurrentMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
-      const createdAtDate = new Date(l.createdAt);
-      if (createdAtDate >= startOfCurrentMonth) return false;
-    } else if (filter && l.status !== filter) {
-      return false;
-    }
+  const dynamicStats = stats || {
+    total: 0, joinedCount: 0, lostCount: 0, conversionRate: 0,
+    addedThisWeek: 0, lostThisWeek: 0, topSource: 'N/A', topSourceCount: 0,
+    thisMonth: 0, growth: 0, followUpsPending: 0, highPriority: 0, missedYesterday: 0,
+    potentialRevenueFormatted: '₹0', hotLeads: 0, formattedMostInterestedPlan: 'N/A'
+  };
 
-    // 2. Calendar Date Filter
-    if (dateFilterType === 'all') return true;
-    if (!l.createdAt) return false;
-
-    const leadDate = new Date(l.createdAt);
-
-    if (dateFilterType === 'date') {
-      if (!selectedDate) return true;
-      const targetDate = parseLocalDate(selectedDate);
-      return leadDate.getFullYear() === targetDate.getFullYear() &&
-        leadDate.getMonth() === targetDate.getMonth() &&
-        leadDate.getDate() === targetDate.getDate();
-    }
-
-    if (dateFilterType === 'month') {
-      const targetMonth = parseInt(selectedMonth);
-      const targetYear = parseInt(selectedYear);
-      return leadDate.getFullYear() === targetYear &&
-        leadDate.getMonth() === targetMonth;
-    }
-
-    if (dateFilterType === 'year') {
-      const targetYear = parseInt(selectedYear);
-      return leadDate.getFullYear() === targetYear;
-    }
-
-    if (dateFilterType === 'range') {
-      const start = parseLocalDate(selectedRangeStart);
-      if (start) start.setHours(0, 0, 0, 0);
-
-      const end = parseLocalDate(selectedRangeEnd);
-      if (end) end.setHours(23, 59, 59, 999);
-
-      if (start && end) {
-        return leadDate >= start && leadDate <= end;
-      } else if (start) {
-        return leadDate >= start;
-      } else if (end) {
-        return leadDate <= end;
-      }
-      return true;
-    }
-
-    return true;
-  });
+  const filteredLeads = leads;
 
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -459,31 +325,7 @@ export default function LeadsClient({ initialLeads, initialStats, initialPlans, 
     };
   }, []);
 
-  const fetchLeads = async (isSilent = false) => {
-    try {
-      if (!isSilent) setLoading(true);
-      const [leadRes, planRes, statRes, trainerRes] = await Promise.all([
-        leadsApi.getAll(`search=${search}&sort=${sortBy}&limit=1000`),
-        plansApi.getAll(),
-        leadsApi.getStats(),
-        trainersApi.getAll('status=active')
-      ]);
-      if (leadRes.success) setLeads(leadRes.data);
-      if (planRes.success) setPlans(planRes.data);
-      if (statRes.success) setStats(statRes.data);
-      if (trainerRes.success) setTrainers(trainerRes.data);
-    } catch (err) { console.error(err); }
-    finally { setLoading(false); }
-  };
 
-  const isInitialMount = useRef(true);
-  useEffect(() => {
-    if (isInitialMount.current) {
-      isInitialMount.current = false;
-      if (initialLeads && initialLeads.length > 0) return;
-    }
-    fetchLeads();
-  }, [search, sortBy]);
 
   useEffect(() => {
     if (!form.phone) {
@@ -562,7 +404,7 @@ export default function LeadsClient({ initialLeads, initialStats, initialPlans, 
       setShowAdd(false);
       setForm({ name: '', phone: '', gender: 'male', source: 'walk-in', status: 'new', interestedPlan: 'undecided', planAmount: '', followUpDate: '', dob: '', notes: '' });
       setPhoneError('');
-      fetchLeads(true);
+      fetchFilteredLeads(1);
     } catch (err) { alert(err.message); }
     finally { setSaving(false); }
   };
@@ -570,7 +412,7 @@ export default function LeadsClient({ initialLeads, initialStats, initialPlans, 
   const updateStatus = async (id, status) => {
     try {
       await leadsApi.update(id, { status });
-      fetchLeads(true);
+      fetchFilteredLeads(1);
     } catch (err) { alert(err.message); }
   };
 
@@ -585,7 +427,7 @@ export default function LeadsClient({ initialLeads, initialStats, initialPlans, 
         setSaving(true);
         try {
           await leadsApi.delete(id);
-          fetchLeads(true);
+          fetchFilteredLeads(1);
           setOpenMenuId(null);
           setActiveMenu(null);
         } catch (err) { alert(err.message); }
@@ -640,7 +482,7 @@ export default function LeadsClient({ initialLeads, initialStats, initialPlans, 
 
       setShowJoinModal(false);
       setLeadToConvert(null);
-      fetchLeads(true);
+      fetchFilteredLeads(1);
     } catch (err) {
       alert(err.message);
     } finally {
@@ -1249,6 +1091,19 @@ export default function LeadsClient({ initialLeads, initialStats, initialPlans, 
                     </div>
                   );
                 })}
+              </div>
+            )}
+            
+            {hasMore && (
+              <div ref={observerRef} className="py-4 flex justify-center">
+                {loadingMore ? (
+                  <div className="flex items-center gap-2 text-text-muted">
+                    <Loader size={16} />
+                    <span className="text-xs uppercase tracking-wider font-bold">Loading more...</span>
+                  </div>
+                ) : (
+                  <div className="h-4" /> 
+                )}
               </div>
             )}
           </>
@@ -2095,7 +1950,7 @@ export default function LeadsClient({ initialLeads, initialStats, initialPlans, 
                 onClick={async () => {
                   try {
                     await leadsApi.update(trialLead._id, { status: 'trial', followUpDate: trialDate });
-                    fetchLeads(true);
+                    fetchFilteredLeads(1);
                     setShowTrialModal(false);
                   } catch (err) {
                     alert(err.message);

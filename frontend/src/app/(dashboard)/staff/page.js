@@ -9,7 +9,7 @@ const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001/api';
 const getCachedStaff = unstable_cache(
   async (token) => {
     try {
-      const res = await fetch(`${baseUrl}/staff?limit=1000`, {
+      const res = await fetch(`${baseUrl}/staff?limit=100`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       return res.ok ? await res.json() : { success: false, data: [] };
@@ -25,7 +25,7 @@ const getCachedStaff = unstable_cache(
 const getCachedExpenses = unstable_cache(
   async (token) => {
     try {
-      const res = await fetch(`${baseUrl}/expenses?category=Salary&limit=1000`, {
+      const res = await fetch(`${baseUrl}/expenses?category=Salary&limit=100`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       return res.ok ? await res.json() : { success: false, data: [] };

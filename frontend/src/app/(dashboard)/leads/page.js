@@ -9,10 +9,10 @@ const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001/api';
 const getCachedLeads = unstable_cache(
   async (token) => {
     try {
-      const res = await fetch(`${baseUrl}/leads?limit=1000`, {
+      const res = await fetch(`${baseUrl}/leads?limit=30&page=1`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
-      return res.ok ? await res.json() : { success: false, data: [] };
+      return res.ok ? await res.json() : { success: false, data: [], hasMore: false };
     } catch (err) {
       console.error('getCachedLeads error:', err);
       return { success: false, data: [] };
@@ -81,6 +81,7 @@ async function LeadsServerRoster({ token }) {
   return (
     <LeadsClient
       initialLeads={leadsRes.success ? leadsRes.data : []}
+      initialHasMore={leadsRes.success ? leadsRes.hasMore : false}
       initialStats={statsRes.success ? statsRes.data : null}
       initialPlans={plansRes.success ? plansRes.data : []}
       initialTrainers={trainersRes.success ? trainersRes.data : []}

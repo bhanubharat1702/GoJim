@@ -141,11 +141,24 @@ exports.getAttendance = async (req, res) => {
       query.member = staffId;
     }
 
+    const limit = parseInt(req.query.limit) || 100;
+    const page = parseInt(req.query.page) || 1;
+
+    const total = await Attendance.countDocuments(query);
     const attendance = await Attendance.find(query)
       .populate('member')
-      .sort({ date: -1, checkInTime: -1 });
+      .sort({ date: -1, checkInTime: -1 })
+      .skip((page - 1) * limit)
+      .limit(limit);
 
-    res.status(200).json({ success: true, count: attendance.length, data: attendance });
+    res.status(200).json({ 
+      success: true, 
+      count: attendance.length, 
+      total,
+      pages: Math.ceil(total / limit),
+      page,
+      data: attendance 
+    });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }

@@ -1,5 +1,6 @@
 'use client';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
+import { useInView } from 'react-intersection-observer';
 import { expensesApi, expenseCategoriesApi } from '@/lib/api';
 import { PageHeader, Modal, StatCard, Select, Loader, DatePicker, SearchBar, EmptyState } from '@/components/UI';
 import {
@@ -128,16 +129,44 @@ export default function ExpensesTab() {
     return true;
   };
 
-  const fetchData = async (isSilent = false) => {
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+
+  // Infinite Scroll Hook
+  const { ref: loadMoreRef, inView } = useInView({
+    threshold: 0,
+    rootMargin: '100px',
+  });
+
+  useEffect(() => {
+    if (inView && hasMore && !loading && !loadingMore) {
+      fetchData(true);
+    }
+  }, [inView, hasMore, loading, loadingMore]);
+
+  const fetchData = async (isLoadMore = false) => {
     try {
-      if (!isSilent) setLoading(true);
+      if (isLoadMore) setLoadingMore(true);
+      else setLoading(true);
+
+      const currentPage = isLoadMore ? page + 1 : 1;
+
       const [expRes, statRes, catRes] = await Promise.all([
-        expensesApi.getAll('limit=1000'),
-        expensesApi.getStats(),
-        expenseCategoriesApi.getAll()
+        expensesApi.getAll(`limit=50&page=${currentPage}`),
+        !isLoadMore ? expensesApi.getStats() : Promise.resolve({ success: false }),
+        !isLoadMore ? expenseCategoriesApi.getAll() : Promise.resolve({ success: false })
       ]);
+      
       if (expRes.success) {
-        setExpenses(expRes.data.filter(e => e.category !== 'Salary'));
+        const filteredData = expRes.data.filter(e => e.category !== 'Salary');
+        if (isLoadMore) {
+          setExpenses(prev => [...prev, ...filteredData]);
+        } else {
+          setExpenses(filteredData);
+        }
+        setHasMore(expRes.page < expRes.pages);
+        setPage(expRes.page || currentPage);
       }
       if (statRes.success) setStats(statRes.data);
       if (catRes.success) {
@@ -154,10 +183,16 @@ export default function ExpensesTab() {
         }
       }
     } catch (err) { console.error(err); }
-    finally { setLoading(false); }
+    finally { 
+      setLoading(false); 
+      setLoadingMore(false);
+    }
   };
 
+  const hasFetched = useRef(false);
   useEffect(() => {
+    if (hasFetched.current) return;
+    hasFetched.current = true;
     fetchData();
   }, []);
 
@@ -1016,6 +1051,13 @@ export default function ExpensesTab() {
                 );
               })}
             </div>
+            
+            {/* Infinite Scroll Trigger */}
+            {hasMore && (
+              <div ref={loadMoreRef} className="py-6 flex justify-center w-full">
+                <Loader size="sm" />
+              </div>
+            )}
           )}
           </>
         )}

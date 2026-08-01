@@ -6,13 +6,15 @@ const AuthContext = createContext(null);
 
 const setTokenCookie = (token) => {
   if (typeof window !== 'undefined') {
-    document.cookie = `gojim_token=${token}; path=/; max-age=3600; SameSite=Lax; Secure`;
+    const isSecure = window.location.protocol === 'https:' ? '; Secure' : '';
+    document.cookie = `gojim_token=${token}; path=/; max-age=3600; SameSite=Lax${isSecure}`;
   }
 };
 
 const deleteTokenCookie = () => {
   if (typeof window !== 'undefined') {
-    document.cookie = 'gojim_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax; Secure';
+    const isSecure = window.location.protocol === 'https:' ? '; Secure' : '';
+    document.cookie = `gojim_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax${isSecure}`;
   }
 };
 

@@ -1,5 +1,5 @@
 'use client';
-import { useState, useEffect } from 'react';
+import { useState, useEffect , useRef} from 'react';
 import { expenseCategoriesApi } from '@/lib/api';
 import { PageHeader, Loader } from '@/components/UI';
 import {
@@ -53,7 +53,10 @@ export default function ExpenseCategoriesTab() {
     }
   };
 
+  const hasFetched = useRef(false);
   useEffect(() => {
+    if (hasFetched.current) return;
+    hasFetched.current = true;
     fetchCategories(true);
   }, []);
 

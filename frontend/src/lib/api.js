@@ -122,7 +122,7 @@ export const leadsApi = {
   update: (id, data) => api.put(`/leads/${id}`, data),
   delete: (id) => api.delete(`/leads/${id}`),
   getFollowUps: () => api.get('/leads/followups'),
-  getStats: () => api.get('/leads/stats'),
+  getStats: (params = '') => api.get(`/leads/stats?${params}`),
 };
 
 // Alerts

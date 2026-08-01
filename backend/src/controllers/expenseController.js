@@ -3,6 +3,7 @@ const Expense = require('../models/Expense');
 exports.getExpenses = async (req, res) => {
   try {
     const limit = parseInt(req.query.limit) || 100;
+    const page = parseInt(req.query.page) || 1;
     
     // Support filtering by category or date range if needed
     const query = { gymOwner: req.user.id };
@@ -11,11 +12,20 @@ exports.getExpenses = async (req, res) => {
       query.category = req.query.category;
     }
 
+    const total = await Expense.countDocuments(query);
     const expenses = await Expense.find(query)
       .sort('-date')
+      .skip((page - 1) * limit)
       .limit(limit);
 
-    res.status(200).json({ success: true, count: expenses.length, data: expenses });
+    res.status(200).json({ 
+      success: true, 
+      count: expenses.length, 
+      total,
+      pages: Math.ceil(total / limit),
+      page,
+      data: expenses 
+    });
   } catch (err) {
     res.status(400).json({ success: false, error: err.message });
   }

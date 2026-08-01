@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect , useRef} from 'react';
 import Link from 'next/link';
 import dynamic from 'next/dynamic';
 import { membersApi } from '@/lib/api';
@@ -171,9 +171,12 @@ export default function DashboardClient({
     return () => clearTimeout(timer);
   }, [memberSearch]);
 
-  // Fetch search results on query or sort change
+  const initialDeps = useRef(JSON.stringify([debouncedMemberSearch, memberSort]));
   useEffect(() => {
     let active = true;
+    const currentDeps = JSON.stringify([debouncedMemberSearch, memberSort]);
+    if (currentDeps === initialDeps.current) return;
+
     const fetchMembers = async () => {
       try {
         const res = await membersApi.getAll(`limit=5&sort=${memberSort}&search=${debouncedMemberSearch}`);
@@ -296,10 +299,10 @@ export default function DashboardClient({
           })()}
 
           <div className="space-y-3">
-            <Link href="/members?action=add" className="w-full bg-accent hover:bg-accent-hover text-black font-black py-2.5 rounded-xl flex items-center justify-center gap-2 transition-all shadow-[0_10px_30px_rgba(184,241,117,0.2)] no-underline">
+            <Link prefetch={false} href="/members?action=add" className="w-full bg-accent hover:bg-accent-hover text-black font-black py-2.5 rounded-xl flex items-center justify-center gap-2 transition-all shadow-[0_10px_30px_rgba(184,241,117,0.2)] no-underline">
               <UserPlus size={20} strokeWidth={3} /> Add a Client
             </Link>
-            <Link href="/attendance" className="w-full bg-[#1a1a1a] hover:bg-[#222] text-white font-bold py-2.5 rounded-xl flex items-center justify-center gap-2 transition-all border border-white/5 no-underline">
+            <Link prefetch={false} href="/attendance" className="w-full bg-[#1a1a1a] hover:bg-[#222] text-white font-bold py-2.5 rounded-xl flex items-center justify-center gap-2 transition-all border border-white/5 no-underline">
               <Calendar size={20} /> Mark Attendance
             </Link>
           </div>
@@ -462,7 +465,7 @@ export default function DashboardClient({
           <div className="grid grid-cols-12 gap-6">
             {/* Stat Cards 2x2 Grid */}
             <div className="col-span-12 lg:col-span-5 grid grid-cols-2 gap-4">
-              <Link href="/payments" className="block no-underline">
+              <Link prefetch={false} href="/payments" className="block no-underline">
                 <StatCard
                   icon={<Coins size={18} />}
                   label="Net Profit"
@@ -483,7 +486,7 @@ export default function DashboardClient({
                   onClick={() => { }}
                 />
               </Link>
-              <Link href="/payments" className="block no-underline">
+              <Link prefetch={false} href="/payments" className="block no-underline">
                 <StatCard
                   icon={<AlertCircle size={18} />}
                   label="Revenue at Risk"
@@ -498,7 +501,7 @@ export default function DashboardClient({
                   onClick={() => { }}
                 />
               </Link>
-              <Link href="/attendance" className="block no-underline">
+              <Link prefetch={false} href="/attendance" className="block no-underline">
                 <StatCard
                   icon={<Clock size={18} />}
                   label="Visited"
@@ -510,7 +513,7 @@ export default function DashboardClient({
                   onClick={() => { }}
                 />
               </Link>
-              <Link href="/trainers" className="block no-underline">
+              <Link prefetch={false} href="/trainers" className="block no-underline">
                 <StatCard
                   icon={<UserCheck size={18} />}
                   label="Trainer"
@@ -711,7 +714,7 @@ export default function DashboardClient({
                 </table>
               </div>
               <div className="border-t border-white/5 p-4 flex justify-center bg-[#0d0d0d]">
-                <Link href="/members" className="text-xs font-black text-white hover:text-accent uppercase tracking-widest hover:underline no-underline flex items-center gap-1.5 transition-all hover:gap-2">
+                <Link prefetch={false} href="/members" className="text-xs font-black text-white hover:text-accent uppercase tracking-widest hover:underline no-underline flex items-center gap-1.5 transition-all hover:gap-2">
                   View All Members <ChevronRight size={14} strokeWidth={3} />
                 </Link>
               </div>

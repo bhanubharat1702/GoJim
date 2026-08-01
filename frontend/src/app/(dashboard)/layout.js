@@ -239,15 +239,7 @@ export default function DashboardLayout({ children }) {
 
     syncUser();
 
-    window.addEventListener('focus', syncUser);
-    document.addEventListener('visibilitychange', syncUser);
-
-    const interval = setInterval(syncUser, 60000);
-
     return () => {
-      window.removeEventListener('focus', syncUser);
-      document.removeEventListener('visibilitychange', syncUser);
-      clearInterval(interval);
     };
   }, [isAuthenticated]);
 
