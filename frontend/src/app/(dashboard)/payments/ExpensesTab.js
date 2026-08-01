@@ -964,6 +964,7 @@ export default function ExpensesTab() {
               No expenses match the selected filters.
             </div>
           ) : (
+            <>
             <div className="block md:hidden space-y-3 max-h-[360px] overflow-y-auto pb-4 pr-1">
               {filteredExpenses.map((e, idx) => {
                 const isExpanded = expandedExpenseId === e._id;
@@ -1058,6 +1059,7 @@ export default function ExpensesTab() {
                 <Loader size="sm" />
               </div>
             )}
+            </>
           )}
           </>
         )}

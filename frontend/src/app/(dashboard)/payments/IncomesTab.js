@@ -1093,6 +1093,7 @@ export default function IncomesTab() {
               No transactions match the selected filters.
             </div>
           ) : (
+            <>
             <div className="block md:hidden space-y-3 max-h-[360px] overflow-y-auto pb-4 pr-1">
               {filteredCombinedData.map((item, idx) => {
                 const isExpanded = expandedIncomeId === item._id;
@@ -1270,6 +1271,7 @@ export default function IncomesTab() {
                 <Loader size="sm" />
               </div>
             )}
+            </>
           )}
           </>
         )}

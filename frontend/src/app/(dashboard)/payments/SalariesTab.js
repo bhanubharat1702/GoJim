@@ -887,6 +887,7 @@ export default function SalariesTab() {
               No salary records match the selected filters.
             </div>
           ) : (
+            <>
             <div className="block md:hidden space-y-3 max-h-[360px] overflow-y-auto pb-4 pr-1">
               {filteredExpenses.map((e, idx) => {
                 const isExpanded = expandedSalaryId === e._id;
@@ -991,6 +992,7 @@ export default function SalariesTab() {
                 <Loader size="sm" />
               </div>
             )}
+            </>
           )}
           </>
         )}
